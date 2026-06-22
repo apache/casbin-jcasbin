@@ -24,6 +24,8 @@ import java.util.HashMap;
 
 import static org.casbin.jcasbin.main.TestUtil.testDomainEnforce;
 import static org.casbin.jcasbin.main.TestUtil.testEnforce;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 public class AbacAPIUnitTest {
     @Test
@@ -80,6 +82,55 @@ public class AbacAPIUnitTest {
         testEnforce(e, "bob", data1, "write", false);
         testEnforce(e, "bob", data2, "read", true);
         testEnforce(e, "bob", data2, "write", true);
+    }
+
+    @Test
+    public void testRBACWithABACRule() {
+        // rbac_with_abac_rule_model combines RBAC (g) with ABAC context rules (p.ctx_rule).
+        // The matcher evaluates a context rule as a per-request allow/deny filter.
+        Enforcer e = new Enforcer(
+            "examples/rbac_with_abac_rule_model.conf",
+            "examples/rbac_with_abac_rule_policy.csv"
+        );
+
+        Map<String, Object> emptyCtx = new HashMap<>();
+
+        Map<String, Object> minorCtx = new HashMap<>();
+        minorCtx.put("age", 18);
+        minorCtx.put("type", "minor");
+
+        Map<String, Object> httpCtx = new HashMap<>();
+        httpCtx.put("network", "http");
+
+        Map<String, Object> highRiskCtx = new HashMap<>();
+        highRiskCtx.put("RiskStatus", "high");
+
+        // alice has roles {admin, user}; bob has role {admin}.
+
+        // admin/data1/read: allow under noRule, deny when context matches r.ctx.age < 18 || r.ctx.type == "minor".
+        assertTrue(e.enforce("alice", "data1", "read", emptyCtx));
+        assertFalse(e.enforce("alice", "data1", "read", minorCtx));
+
+        // admin/data2: no policy for "read" so it is denied; "write" is allowed under noRule
+        // and denied when r.ctx.network == "http".
+        assertFalse(e.enforce("alice", "data2", "read", emptyCtx));
+        assertTrue(e.enforce("alice", "data2", "write", emptyCtx));
+        assertFalse(e.enforce("alice", "data2", "write", httpCtx));
+
+        // admin/data3/* : wildcard action matches any act, allowed under noRule.
+        assertTrue(e.enforce("alice", "data3", "read", emptyCtx));
+        assertTrue(e.enforce("alice", "data3", "write", emptyCtx));
+
+        // user/data4/read: allowed under noRule, denied when r.ctx.RiskStatus == "high".
+        assertTrue(e.enforce("alice", "data4", "read", emptyCtx));
+        assertFalse(e.enforce("alice", "data4", "read", highRiskCtx));
+
+        // bob is admin only, so he can use admin policies but not user policies.
+        assertTrue(e.enforce("bob", "data1", "read", emptyCtx));
+        assertFalse(e.enforce("bob", "data4", "read", emptyCtx));
+
+        // Unknown resource has no matching policy -> denied.
+        assertFalse(e.enforce("alice", "data5", "read", emptyCtx));
     }
 
     public static class TestEvalRule {
