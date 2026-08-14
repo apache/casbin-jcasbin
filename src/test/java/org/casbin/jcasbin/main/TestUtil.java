@@ -59,6 +59,10 @@ public class TestUtil {
         assertEquals(res, e.enforce(enforceContext, sub, obj, act));
     }
 
+    static void testRBACWithABACRuleEnforce(Enforcer e, Object sub, Object obj, String act, Map<String, Object> ctx, boolean res) {
+        assertEquals(res, e.enforce(sub, obj, act, ctx));
+    }
+
     static void testDomainEnforce(Enforcer e, Object sub, Object dom, Object obj, Object act, boolean res) {
         assertEquals(res, e.enforce(sub, dom, obj, act));
     }
