@@ -21,8 +21,8 @@ under the License.
 
 [![GitHub Actions](https://github.com/apache/casbin-jcasbin/workflows/build/badge.svg)](https://github.com/apache/casbin-jcasbin/actions)
 [![codecov](https://codecov.io/gh/apache/casbin-jcasbin/branch/master/graph/badge.svg?token=pKOEodQ3q9)](https://codecov.io/gh/apache/casbin-jcasbin)
-[![javadoc](https://javadoc.io/badge2/org.casbin/jcasbin/javadoc.svg)](https://javadoc.io/doc/org.casbin/jcasbin)
-[![Maven Central](https://img.shields.io/maven-central/v/org.casbin/jcasbin.svg)](https://mvnrepository.com/artifact/org.casbin/jcasbin/latest)
+[![javadoc](https://javadoc.io/badge2/org.apache.casbin/jcasbin/javadoc.svg)](https://javadoc.io/doc/org.apache.casbin/jcasbin)
+[![Maven Central](https://img.shields.io/maven-central/v/org.apache.casbin/jcasbin.svg)](https://mvnrepository.com/artifact/org.apache.casbin/jcasbin/latest)
 [![Release](https://img.shields.io/github/release/apache/casbin-jcasbin.svg)](https://github.com/apache/casbin-jcasbin/releases/latest)
 [![Discord](https://img.shields.io/discord/1022748306096537660?logo=discord&label=discord&color=5865F2)](https://discord.gg/S5UjpzGZjN)
 
@@ -133,11 +133,20 @@ For Maven:
 
 ```
 <dependency>
-  <groupId>org.casbin</groupId>
+  <groupId>org.apache.casbin</groupId>
   <artifactId>jcasbin</artifactId>
   <version>1.x.y (replace with latest version)</version>
 </dependency>
 ```
+
+Starting with 1.100.0, the Maven coordinates change from `org.casbin:jcasbin`
+to `org.apache.casbin:jcasbin`. Java package names and imports remain
+`org.casbin.jcasbin.*`. Update dependency declarations and dependency management;
+if an adapter still pulls in the old coordinates, exclude that dependency so
+both copies of JCasbin are not placed on the classpath. Existing releases under
+the old coordinates remain available. Release candidates are for review and are
+not published to Maven Central; use the new coordinates after the release is
+approved and published.
 
 ## Documentation
 
