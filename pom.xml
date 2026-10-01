@@ -21,13 +21,21 @@ under the License.
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.casbin</groupId>
+    <groupId>org.apache.casbin</groupId>
     <artifactId>jcasbin</artifactId>
     <!-- The real version is supplied at release time with -Drevision=X.Y.Z (see RELEASING.md). -->
     <version>${revision}</version>
 
     <name>Apache jCasbin (Incubating)</name>
-    <description>An authorization library that supports access control models like ACL, RBAC, ABAC in Java</description>
+    <description>
+        An authorization library that supports access control models like ACL, RBAC, ABAC in Java.
+
+        Apache Casbin (Incubating) is an effort undergoing incubation at the Apache Software Foundation (ASF), sponsored by the Apache Incubator PMC.
+
+        Incubation is required of all newly accepted projects until a further review indicates that the infrastructure, communications, and decision making process have stabilized in a manner consistent with other successful ASF projects.
+
+        While incubation status is not necessarily a reflection of the completeness or stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.
+    </description>
     <url>https://casbin.apache.org/</url>
     <inceptionYear>2017</inceptionYear>
 
@@ -54,6 +62,11 @@ under the License.
         <developerConnection>scm:git:ssh://git@github.com/apache/casbin-jcasbin.git</developerConnection>
     </scm>
     <developers>
+        <developer>
+            <name>Apache Casbin</name>
+            <email>dev@casbin.apache.org</email>
+            <url>https://casbin.apache.org/</url>
+        </developer>
         <developer>
             <name>Yang Luo</name>
             <email>hsluoyz@qq.com</email>

@@ -37,6 +37,14 @@ releases except the tag.
 
 ## Before creating an RC tag
 
+The Maven coordinates are `org.apache.casbin:jcasbin` starting with 1.100.0.
+Java package names remain unchanged. Check the effective and flattened POMs,
+README coordinates and generated JAR metadata together. Confirm that the
+project's Central publishing account can administer the `org.apache.casbin`
+namespace before attempting publication; permission for `org.casbin` alone
+does not establish permission for the new namespace. See the migration note
+in README.md for downstream dependency handling.
+
 1. Check the latest releases/tags and choose the next `X.Y.Z`.
    Resolve relevant dependency updates and legal/source-archive findings in the
    preparation PR. The approved release scope determines which changes are included.
@@ -50,7 +58,7 @@ releases except the tag.
    `GPG_PASSPHRASE`, `GPG_KEY_NAME`, `OSSRH_JIRA_USERNAME` and
    `OSSRH_JIRA_PASSWORD`. The last two names are retained for compatibility:
    their values must be the Central Publisher Portal user-token username and
-   password with publishing permission for `org.casbin`, not old OSSRH login
+   password with publishing permission for `org.apache.casbin`, not old OSSRH login
    credentials. Check configuration without disclosing secret values.
 
 ## RC and community vote
