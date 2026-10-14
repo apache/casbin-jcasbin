@@ -19,7 +19,8 @@ name: Release
 
 # Releases are cut manually by pushing a git tag:
 #   v1.4.0-rc1 -> GitHub pre-release only (source package for the Apache vote)
-#   v1.4.0     -> GitHub release + publish to Maven Central
+#   v1.4.0     -> GitHub release using promoted ASF source originals
+# Maven promotion is a separate release-manager action on the reviewed Nexus repository.
 #
 # The release manager downloads the source package from the release, signs it
 # locally, and uses it for voting. This workflow does not sign anything.
@@ -219,13 +220,5 @@ jobs:
           gh release create "${TAG}" dist/* --verify-tag \
             --title "JCasbin ${TAG}" --notes-file RELEASE_NOTES.md "${FLAGS[@]}"
 
-  publish-maven:
-    name: Publish Maven
-    needs:
-      - prepare
-      - github-release
-    if: ${{ needs.prepare.outputs.prerelease == 'false' }}
-    uses: ./.github/workflows/maven-publish.yml
-    with:
-      maven_version: ${{ needs.prepare.outputs.maven_version }}
-    secrets: inherit
+  # Maven promotion is performed separately on the reviewed closed Nexus
+  # repository after PPMC/IPMC approval. Do not rebuild Maven artifacts here.

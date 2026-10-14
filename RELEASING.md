@@ -19,90 +19,61 @@ under the License.
 
 # Releasing JCasbin
 
-Prepare dependency, licensing and workflow changes together in one
-release-preparation PR. Complete the scoped checks before requesting merge.
-Use [BUILDING.md](BUILDING.md) for the full Java 8/Maven build. Release-script
-tests run with `python3 -m unittest discover -s .github/scripts -p 'test_*.py'`.
-The release workflows require Python 3 and GnuPG, provided by Ubuntu runners.
+Use Java 8 and Maven 3.9.x. Prepare the release changes in one PR, then
+verify its actual merged commit and CI. Java imports stay `org.casbin.jcasbin`;
+Maven coordinates are `org.apache.casbin:jcasbin:X.Y.Z`.
 
-## Versioning
+## Release checklist
 
-The version is **not** committed to the source tree. `pom.xml` declares
-`<version>${revision}</version>` with the placeholder `0.0.0`, and the release
-version comes from the git tag: `vX.Y.Z-rcN` and `vX.Y.Z` both map to Maven
-version `X.Y.Z`. The Maven publish job passes `-Drevision=X.Y.Z`, and
-`flatten-maven-plugin` writes the resolved version into the POM that is
-deployed to Maven Central. Nothing in the repository needs to change between
-releases except the tag.
+1. Confirm the release manager's signing key is in the project KEYS file and
+   the ASF Nexus profile covers `org.apache.casbin`. Keep private Maven settings
+   outside Git, using server ID `apache.releases.https`. The Apache parent POM
+   provides the staging and snapshot URLs; do not override them. Signing,
+   Nexus access and ASF dist access are separate permissions.
+2. Create an unused `vX.Y.Z-rcN` tag at the reviewed merged commit. Download the
+   workflow's tar.gz and ZIP source packages and SHA-512 files. Check them against
+   the tag and build a disposable extraction as described in BUILDING.md.
+   Keep the original archives: some tests rewrite example policies.
+3. Review the source and generated main/sources/Javadoc JARs, flattened POM,
+   legal files and documentation resources. Resolve any identified release
+   blockers. Javadoc licensing is being reviewed separately; this Maven route
+   change does not clear that question or require a newer documentation JDK.
+4. From a fresh extraction of the same source, build, sign and upload Maven
+   artifacts to ASF review staging with the standard release profile:
 
-## Before creating an RC tag
+   ```sh
+   mvn -B -ntp clean deploy -Papache-release -Drevision=X.Y.Z
+   ```
 
-The Maven coordinates are `org.apache.casbin:jcasbin` starting with 1.100.0.
-Java package names remain unchanged. Check the effective and flattened POMs,
-README coordinates and generated JAR metadata together. Confirm that the
-project's Central publishing account can administer the `org.apache.casbin`
-namespace before attempting publication; permission for `org.casbin` alone
-does not establish permission for the new namespace. See the migration note
-in README.md for downstream dependency handling.
+   Use your private settings with `-s /path/to/settings.xml` if needed. Do not
+   skip tests or signing for a real release. The parent profile signs the main,
+   sources and Javadoc JARs and resolved POM. Source-release assembly/checksum
+   executions are disabled because the tagged source archives from step 2 are
+   the vote originals; do not create another source archive from test-modified
+   files. Sign those original tar.gz/ZIP files separately and stage them with
+   their signatures and SHA-512 files under a new ASF dev RC directory.
+5. Inspect the actual Nexus repository ID and artifacts, then close it for
+   review. Independently download all JARs/POM/signatures, verify KEYS,
+   signatures, hashes, GAV, legal material and correspondence with the source.
+   Record named source and binary review. Check remote state before retrying;
+   never overwrite a candidate or drop someone else's repository.
+6. Start fresh project/PPMC and IPMC votes with the exact source tag/commit,
+   ASF dev source URL, closed Maven repository URL, KEYS and verification
+   results. Link the dev ballot/result in the general request, and count the
+   two bodies separately. Cancelled RC votes cannot be reused.
+7. After both approvals, promote the voted source archives to ASF release
+   distribution and release the same closed Nexus repository. Promotion does
+   not rebuild Maven files. Verify public downloads and Maven resolution.
+   Push `vX.Y.Z` at the reviewed RC commit only after source promotion: its
+   workflow verifies and reuses the promoted ASF originals for GitHub Release,
+   with no Maven rebuild or deployment. Complete the download page and announcement.
 
-1. Check the latest releases/tags and choose the next `X.Y.Z`.
-   Resolve relevant dependency updates and legal/source-archive findings in the
-   preparation PR. The approved release scope determines which changes are included.
-2. After merge, record the exact merged SHA and verify its build. Check the
-   final source archive with Apache RAT and review LICENSE, NOTICE, DISCLAIMER,
-   third-party material and any exclusions. New merged bytes need new evidence.
-3. Confirm that a maintainer can create the tag, the release manager can sign
-   and write the Casbin ASF distribution directories, and the signing public
-   key is in the official Casbin KEYS file.
-4. The Maven job uses existing repository secrets `GPG_PRIVATE_KEY`,
-   `GPG_PASSPHRASE`, `GPG_KEY_NAME`, `OSSRH_JIRA_USERNAME` and
-   `OSSRH_JIRA_PASSWORD`. The last two names are retained for compatibility:
-   their values must be the Central Publisher Portal user-token username and
-   password with publishing permission for `org.apache.casbin`, not old OSSRH login
-   credentials. Check configuration without disclosing secret values.
+For an unsigned local check of the release profile, use
+`mvn -B -ntp clean verify -Papache-release -Drevision=X.Y.Z -Dgpg.skip=true`.
+This is not a signing or staging test. Ordinary development still uses
+BUILDING.md and does not need the release profile.
 
-## RC and community vote
-
-Create `vX.Y.Z-rcN` at the reviewed merged SHA. The tag workflow creates a
-GitHub prerelease containing:
-
-- `apache-casbin-jcasbin-X.Y.Z-incubating-src.tar.gz` and its `.sha512`;
-- `apache-casbin-jcasbin-X.Y.Z-incubating-src.zip` and its `.sha512`.
-
-Download and verify these exact archives; independently inspect/unpack/build
-them. Sign **both** archives, adding each `.asc`. Stage all six files under
-`https://dist.apache.org/repos/dist/dev/incubator/casbin/jcasbin-X.Y.Z-incubating-rcN/`.
-Verify the public downloads, signatures and checksums, then conduct the
-applicable Casbin/Incubator votes on these immutable files. Never overwrite a
-staged candidate. If candidate bytes must change, use a new RC number.
-
-GitHub refuses creation if that Release already exists. A failed or partial
-run needs its actual uploaded state inspected; do not delete and recreate a
-candidate already used for voting as a retry mechanism.
-
-## Promote and publish after approval
-
-1. Record the successful applicable vote results. Promote the same six files
-   to the ASF release directory `incubator/casbin/jcasbin-X.Y.Z-incubating/`.
-2. Wait until all six files are available at
-   `https://downloads.apache.org/incubator/casbin/jcasbin-X.Y.Z-incubating/`.
-3. Create the final `vX.Y.Z` tag at the same reviewed RC commit. This workflow
-   downloads the promoted ASF originals, verifies SHA-512 and detached
-   signatures against Casbin KEYS, and compares both archive file sets with
-   the tagged Git source. It does not rebuild or replace those source archives.
-4. GitHub Release creation fails if the Release already exists. Maven Central
-   publishing follows only after the final GitHub Release job succeeds.
-   A Maven-only retry is available through **Publish Maven** on the matching
-   final tag. It repeats the ASF-source verification before loading private
-   signing credentials; never dispatch it from master or an RC tag. Check
-   whether the Maven version already exists before retrying a failed publish.
-5. Verify the published distributions, update download links, send the release
-   announcement as authorized, and retain the vote/artifact evidence.
-
-Missing ASF files, mismatched source, bad checksums or invalid signatures stop
-publication. Availability in ASF's release directory is an execution gate;
-the release manager remains responsible for the actual vote and promotion.
-These operations require no additional source PR after the preparation merges.
-
-References: [ASF release policy](https://www.apache.org/legal/release-policy.html)
-and [Central Maven publishing](https://central.sonatype.org/publish/publish-portal-maven/).
+References: [Apache parent POM](https://maven.apache.org/pom/asf/),
+[ASF Maven guide](https://infra.apache.org/publishing-maven-artifacts.html),
+[ASF release policy](https://www.apache.org/legal/release-policy.html),
+[Incubation policy](https://incubator.apache.org/policy/incubation.html#releases).

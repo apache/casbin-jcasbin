@@ -45,9 +45,10 @@ under the License.
     </issueManagement>
 
     <parent>
-        <groupId>org.sonatype.oss</groupId>
-        <artifactId>oss-parent</artifactId>
-        <version>7</version>
+        <groupId>org.apache</groupId>
+        <artifactId>apache</artifactId>
+        <version>40</version>
+        <relativePath/>
     </parent>
     <licenses>
         <license>
@@ -76,6 +77,7 @@ under the License.
 
     <properties>
         <revision>0.0.0</revision>
+        <javaVersion>8</javaVersion>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <slf4j.version>2.0.16</slf4j.version>
     </properties>
@@ -96,6 +98,12 @@ under the License.
             </resource>
         </resources>
         <plugins>
+            <plugin>
+                <!-- Keep the project's reviewed LICENSE/NOTICE instead of generated templates. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-remote-resources-plugin</artifactId>
+                <configuration><skip>true</skip></configuration>
+            </plugin>
             <plugin>
                 <!-- Resolve ${revision} in the POM that gets installed/deployed. -->
                 <groupId>org.codehaus.mojo</groupId>
@@ -142,27 +150,6 @@ under the License.
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>3.2.7</version>
-                <executions>
-                    <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>sign</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <!-- Prevent gpg from using pinentry programs -->
-                    <gpgArguments>
-                        <arg>--pinentry-mode</arg>
-                        <arg>loopback</arg>
-                    </gpgArguments>
-                </configuration>
             </plugin>
             <plugin>
                 <!-- Allow attaching Javadoc during releases -->
@@ -215,19 +202,6 @@ under the License.
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <!-- Automatically close and deploy from OSSRH -->
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.6.0</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <publishingServerId>ossrh</publishingServerId>
-                    <tokenAuth>true</tokenAuth>
-                    <!-- Release versions will be synced to Maven Central automatically. -->
-                    <autoPublish>true</autoPublish>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -319,4 +293,30 @@ under the License.
             <version>2.18.9</version>
         </dependency>
     </dependencies>
+    <profiles>
+        <profile>
+            <id>apache-release</id>
+            <build>
+                <plugins>
+                    <!-- Source archives and SHA-512 files come from the reviewed RC tag. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <executions><execution>
+                            <id>source-release-assembly</id>
+                            <phase>none</phase>
+                        </execution></executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>eu.maveniverse.maven.plugins</groupId>
+                        <artifactId>checksum-plugin3</artifactId>
+                        <executions><execution>
+                            <id>source-release-checksum</id>
+                            <phase>none</phase>
+                        </execution></executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

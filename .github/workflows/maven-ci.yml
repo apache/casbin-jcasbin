@@ -41,6 +41,9 @@ jobs:
           distribution: temurin
           java-version: 8
 
+      - name: Check unsigned Apache release profile
+        run: mvn -B -ntp clean verify -Papache-release -Dgpg.skip=true -DskipTests=true
+
       - name: Build with Maven
         run: mvn -B -ntp clean verify cobertura:cobertura -Dgpg.skip=true
 
