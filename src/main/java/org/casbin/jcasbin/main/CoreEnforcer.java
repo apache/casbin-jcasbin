@@ -397,15 +397,24 @@ public class CoreEnforcer {
                     assertion.rm = new DomainManager(10);
                     rmMap.put(ptype, assertion.rm);
                 } else {
-                    assertion.condRM = new ConditionalRoleManager(10);
+                    assertion.condRM = new ConditionalDomainManager(10);
                     condRmMap.put(ptype, assertion.condRM);
                     rmMap.put(ptype, assertion.condRM);
                 }
-                String matchFun = "keyMatch(r_dom, p_dom)";
-                if (model.model.get("m").get("m").value.contains(matchFun)) {
-                    addNamedDomainMatchingFunc(ptype, "g", BuiltInFunctions::keyMatch);
-                }
+                registerDomainMatchingFunc(ptype);
             }
+        }
+    }
+
+    private void registerDomainMatchingFunc(String ptype) {
+        Assertion r = model.model.getOrDefault("r", Collections.emptyMap()).get("r");
+        Assertion p = model.model.getOrDefault("p", Collections.emptyMap()).get("p");
+        if (r == null || p == null || r.tokens.length < 2 || p.tokens.length < 2) {
+            return;
+        }
+        String matchFun = "keyMatch(" + r.tokens[1] + ", " + p.tokens[1] + ")";
+        if (model.model.get("m").get("m").value.contains(matchFun)) {
+            addNamedDomainMatchingFunc(ptype, "g", BuiltInFunctions::keyMatch);
         }
     }
 
@@ -414,10 +423,7 @@ public class CoreEnforcer {
      */
     private void addOrUpdateDomainManagerMatching(String ptype) {
         rmMap.put(ptype, new DomainManager(10));
-        String matchFun = "keyMatch(r_dom, p_dom)";
-        if (model.model.get("m").get("m").value.contains(matchFun)) {
-            addNamedDomainMatchingFunc(ptype, "g", BuiltInFunctions::keyMatch);
-        }
+        registerDomainMatchingFunc(ptype);
     }
 
     private void initBuiltInFunction() {
@@ -812,16 +818,19 @@ public class CoreEnforcer {
      * @return whether the matching function was successfully added.
      */
     public boolean addNamedDomainMatchingFunc(String ptype, String name, BiPredicate<String, String> fn) {
-        if (rmMap.containsKey(ptype)) {
-            DomainManager rm = (DomainManager) rmMap.get(ptype);
-            rm.addDomainMatchingFunc(name, fn);
+        RoleManager rm = rmMap.get(ptype);
+        if (rm instanceof DomainManager) {
+            ((DomainManager) rm).addDomainMatchingFunc(name, fn);
+        } else if (rm instanceof DefaultRoleManager) {
+            ((DefaultRoleManager) rm).addDomainMatchingFunc(name, fn);
+        } else {
+            return false;
+        }
 //            clearRmMap();
 //            if (autoBuildRoleLinks) {
 //                buildRoleLinks();
 //            }
-            return true;
-        }
-        return false;
+        return true;
     }
 
     /**

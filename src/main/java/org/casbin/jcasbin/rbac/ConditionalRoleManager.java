@@ -23,12 +23,24 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class ConditionalRoleManager extends DefaultRoleManager{
+    BiPredicate<String, String> domainMatchingFunc;
+
     public ConditionalRoleManager(int maxHierarchyLevel) {
         super(maxHierarchyLevel);
     }
 
     public ConditionalRoleManager(int maxHierarchyLevel, BiPredicate<String, String> matchingFunc, BiPredicate<String, String> domainMatchingFunc) {
         super(maxHierarchyLevel, matchingFunc, domainMatchingFunc);
+        this.domainMatchingFunc = domainMatchingFunc;
+    }
+
+    void copyFrom(ConditionalRoleManager other) {
+        other.allRoles.values().forEach(user -> {
+            user.roles.keySet().forEach(roleName -> {
+                addLink(user.getName(), roleName);
+                getRole(user.getName()).copyLinkConditions(user, roleName);
+            });
+        });
     }
 
     public synchronized boolean hasLink(String name1, String name2, String... domains) {
@@ -99,6 +111,12 @@ public class ConditionalRoleManager extends DefaultRoleManager{
                 } catch (Exception e) {
                     err = e;
                 }
+            } else if (domainMatchingFunc != null) {
+                try {
+                    passLinkConditionFunc = checkPatternLinkCondition(currentRole.getName(), nextRole.getName(), domains[0]);
+                } catch (Exception e) {
+                    err = e;
+                }
             }
         }
 
@@ -112,6 +130,24 @@ public class ConditionalRoleManager extends DefaultRoleManager{
             nextRoles.put(nextRole.getName(), nextRole);
         }
 
+        return true;
+    }
+
+    private boolean checkPatternLinkCondition(String name1, String name2, String domain) {
+        Role user = this.allRoles.get(name1);
+        if (user == null) {
+            return true;
+        }
+        for (Map.Entry<LinkConditionFuncKey, Function<String[], Boolean>> entry : user.getLinkConditionFuncMap().entrySet()) {
+            LinkConditionFuncKey key = entry.getKey();
+            if (!key.getRoleName().equals(name2) || key.getDomainName().equals(domain) || !domainMatchingFunc.test(domain, key.getDomainName())) {
+                continue;
+            }
+            List<String> params = getLinkConditionFuncParams(name1, name2, new String[]{key.getDomainName()});
+            if (!entry.getValue().apply(params.toArray(new String[0]))) {
+                return false;
+            }
+        }
         return true;
     }
 

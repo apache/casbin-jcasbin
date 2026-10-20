@@ -35,6 +35,13 @@ jobs:
         with:
           fetch-depth: '0'
 
+      - name: Checkout conformance cases
+        uses: actions/checkout@v4
+        with:
+          repository: apache/casbin
+          path: casbin-conformance
+          sparse-checkout: conformance
+
       - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
@@ -46,6 +53,8 @@ jobs:
 
       - name: Build with Maven
         run: mvn -B -ntp clean verify cobertura:cobertura -Dgpg.skip=true
+        env:
+          CASBIN_CONFORMANCE_DIR: ${{ github.workspace }}/casbin-conformance/conformance
 
       - name: Test release verification
         run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'

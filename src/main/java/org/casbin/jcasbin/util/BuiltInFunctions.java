@@ -321,7 +321,7 @@ public class BuiltInFunctions {
      * @return whether key1 matches key2.
      */
     public static boolean regexMatch(String key1, String key2) {
-        return Pattern.compile(key2).matcher(key1).lookingAt();
+        return Pattern.compile(key2).matcher(key1).find();
     }
 
     /**

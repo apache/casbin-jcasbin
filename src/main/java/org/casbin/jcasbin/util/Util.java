@@ -38,7 +38,7 @@ public class Util {
     public static boolean enableLog = true;
     private static Pattern evalReg = Pattern.compile("\\beval\\(([^),]*)\\)");
 
-    private static final Pattern IN_SYNTAX_PATTERN = Pattern.compile("([^\\s]+?) +in +(\\([^)]*\\)|\\S+)");
+    private static final Pattern IN_SYNTAX_PATTERN = Pattern.compile("([^\\s]+?) +in +(\\([^)]*\\)|\\[[^\\]]*\\]|\\S+)");
 
     private static Pattern escapeAssertionRegex = Pattern.compile("\\b(r|p)[0-9]*\\.");
 
@@ -217,6 +217,8 @@ public class Util {
             // convert to tuple() function. Otherwise, keep parentheses as-is for grouping.
             if (rightOperand.startsWith("(") && rightOperand.endsWith(")") && rightOperand.contains(",")) {
                 rightOperand = "tuple" + rightOperand;
+            } else if (rightOperand.startsWith("[") && rightOperand.endsWith("]")) {
+                rightOperand = "tuple(" + rightOperand.substring(1, rightOperand.length() - 1) + ")";
             }
             
             matcher.appendReplacement(sb, Matcher.quoteReplacement("include(" + rightOperand + ", " + leftOperand + ")"));

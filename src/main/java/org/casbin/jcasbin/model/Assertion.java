@@ -181,7 +181,7 @@ public class Assertion {
             rm = condRM;
         }else {
             String domain = domainRule.get(0);
-            condRM.addLink(rule.get(0), rule.get(1));
+            condRM.addLink(rule.get(0), rule.get(1), domain);
             condRM.setDomainLinkConditionFuncParams(rule.get(0), rule.get(1), domain, rule.subList(tokens.length, rule.size()).toArray(new String[0]));
             rm = condRM;
         }
