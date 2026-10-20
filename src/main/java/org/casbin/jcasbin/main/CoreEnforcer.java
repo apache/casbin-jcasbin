@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.googlecode.aviator.AviatorEvaluator;
 import com.googlecode.aviator.AviatorEvaluatorInstance;
 import com.googlecode.aviator.Expression;
+import com.googlecode.aviator.runtime.type.AviatorBoolean;
 import com.googlecode.aviator.runtime.type.AviatorFunction;
 import org.casbin.jcasbin.effect.DefaultEffector;
 import org.casbin.jcasbin.effect.Effect;
@@ -42,6 +43,7 @@ import org.casbin.jcasbin.util.EnforceContext;
 import org.casbin.jcasbin.util.Util;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 
@@ -68,6 +70,7 @@ public class CoreEnforcer {
     boolean acceptJsonRequest = false;
 
     private AviatorEvaluatorInstance aviatorEval;
+    private final Map<String, Map<String, AviatorBoolean>> gFunctionCache = new ConcurrentHashMap<>();
 
     void initialize() {
         rmMap = new HashMap<>();
@@ -541,13 +544,13 @@ public class CoreEnforcer {
 
                 RoleManager rm = ast.rm;
                 if (rm != null){
-                    AviatorFunction aviatorFunction = BuiltInFunctions.GenerateGFunctionClass.generateGFunction(key, rm);
+                    AviatorFunction aviatorFunction = BuiltInFunctions.GenerateGFunctionClass.generateGFunction(key, rm, gFunctionCache);
                     gFunctions.put(key, aviatorFunction);
                 }
 
                 ConditionalRoleManager condRM = ast.condRM;
                 if (condRM != null){
-                    AviatorFunction aviatorFunction = BuiltInFunctions.GenerateConditionalGFunctionClass.generateConditionalGFunction(key, condRM);
+                    AviatorFunction aviatorFunction = BuiltInFunctions.GenerateConditionalGFunctionClass.generateConditionalGFunction(key, condRM, gFunctionCache);
                     gFunctions.put(key, aviatorFunction);
                 }
 

@@ -400,9 +400,6 @@ public class BuiltInFunctions {
 
 
     public static class GenerateGFunctionClass {
-        // key:name such as g,g2  value:user-role mapping
-        private static Map<String, Map<String, AviatorBoolean>> memorizedMap = new ConcurrentHashMap<>();
-
         /**
          * generateGFunction is the factory method of the g(_, _) function.
          *
@@ -411,6 +408,18 @@ public class BuiltInFunctions {
          * @return the function.
          */
         public static AviatorFunction generateGFunction(String name, RoleManager rm) {
+            return generateGFunction(name, rm, new ConcurrentHashMap<>());
+        }
+
+        /**
+         * generateGFunction is the factory method of the g(_, _) function.
+         *
+         * @param name         the name of the g(_, _) function, can be "g", "g2", ..
+         * @param rm           the role manager used by the function.
+         * @param memorizedMap the cache of g(_, _) results owned by the caller, key: name such as g, g2.
+         * @return the function.
+         */
+        public static AviatorFunction generateGFunction(String name, RoleManager rm, Map<String, Map<String, AviatorBoolean>> memorizedMap) {
             memorizedMap.put(name, new ConcurrentHashMap<>());
 
             return new AbstractVariadicFunction() {
@@ -458,9 +467,6 @@ public class BuiltInFunctions {
     }
 
     public static class GenerateConditionalGFunctionClass {
-        // key:name such as g,g2  value:user-role mapping
-        private static Map<String, Map<String, AviatorBoolean>> memorizedMap = new ConcurrentHashMap<>();
-
         /**
          * GenerateConditionalGFunction is the factory method of the g(_, _[, _]) function with conditions.
          *
@@ -469,6 +475,18 @@ public class BuiltInFunctions {
          * @return the function.
          */
         public static AviatorFunction generateConditionalGFunction(String name, ConditionalRoleManager condRm) {
+            return generateConditionalGFunction(name, condRm, new ConcurrentHashMap<>());
+        }
+
+        /**
+         * GenerateConditionalGFunction is the factory method of the g(_, _[, _]) function with conditions.
+         *
+         * @param name         the name of the g(_, _) function, can be "g", "g2", ..
+         * @param condRm       the conditional role manager used by the function.
+         * @param memorizedMap the cache of g(_, _) results owned by the caller, key: name such as g, g2.
+         * @return the function.
+         */
+        public static AviatorFunction generateConditionalGFunction(String name, ConditionalRoleManager condRm, Map<String, Map<String, AviatorBoolean>> memorizedMap) {
             memorizedMap.put(name, new ConcurrentHashMap<>());
 
             return new AbstractVariadicFunction() {

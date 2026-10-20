@@ -17,25 +17,95 @@
 
 package org.casbin.jcasbin.main;
 
+import com.googlecode.aviator.runtime.type.AviatorBoolean;
+import com.googlecode.aviator.runtime.type.AviatorObject;
 import org.casbin.jcasbin.model.Model;
 import org.casbin.jcasbin.persist.Adapter;
 import org.casbin.jcasbin.persist.file_adapter.FileAdapter;
+import org.casbin.jcasbin.util.function.CustomFunction;
 import org.testng.annotations.Test;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Arrays.asList;
 import static org.casbin.jcasbin.main.CoreEnforcer.newModel;
 import static org.casbin.jcasbin.main.TestUtil.*;
 import static org.casbin.jcasbin.main.TestUtil.testEnforceEx;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class SyncedEnforcerUnitTest {
 
     public static void testEnforceSync(SyncedEnforcer e, String sub, Object obj, String act, boolean res) {
         assertEquals(res, e.enforce(sub, obj, act));
+    }
+
+    public static void testEnforceSync(SyncedEnforcer e, String sub, Object obj, boolean res) {
+        assertEquals(res, e.enforce(sub, obj));
+    }
+
+    private static class GateFunction extends CustomFunction {
+        final CountDownLatch entered = new CountDownLatch(1);
+        final CountDownLatch release = new CountDownLatch(1);
+        volatile boolean block;
+
+        @Override
+        public AviatorObject call(Map<String, Object> env, AviatorObject arg) {
+            if (block) {
+                entered.countDown();
+                try {
+                    release.await(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            return AviatorBoolean.TRUE;
+        }
+
+        @Override
+        public String getName() {
+            return "gate";
+        }
+    }
+
+    private static SyncedEnforcer newGatedEnforcer(GateFunction gate, boolean hasRole) {
+        Model m = newModel();
+        m.addDef("r", "r", "sub, obj");
+        m.addDef("p", "p", "sub, obj");
+        m.addDef("g", "g", "_, _");
+        m.addDef("e", "e", "some(where (p.eft == allow))");
+        m.addDef("m", "m", "gate(r.sub) && g(r.sub, p.sub) && r.obj == p.obj");
+        SyncedEnforcer e = new SyncedEnforcer(m);
+        e.addFunction(gate.getName(), gate);
+        e.addPolicy("admin", "data");
+        if (hasRole) {
+            e.addGroupingPolicy("alice", "admin");
+        }
+        return e;
+    }
+
+    @Test
+    public void testRoleCacheIsolatedBetweenEnforcers() throws InterruptedException {
+        GateFunction gate = new GateFunction();
+        SyncedEnforcer isolated = newGatedEnforcer(gate, false);
+        SyncedEnforcer privileged = newGatedEnforcer(new GateFunction(), true);
+        testEnforceSync(isolated, "alice", "data", false);
+
+        gate.block = true;
+        AtomicReference<Boolean> result = new AtomicReference<>();
+        Thread t = new Thread(() -> result.set(isolated.enforce("alice", "data")));
+        t.start();
+        assertTrue(gate.entered.await(10, TimeUnit.SECONDS));
+        testEnforceSync(privileged, "alice", "data", true);
+        gate.release.countDown();
+        t.join(10000);
+
+        assertEquals(result.get(), Boolean.FALSE);
     }
 
     @Test
