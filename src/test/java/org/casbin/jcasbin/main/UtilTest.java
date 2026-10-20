@@ -54,6 +54,9 @@ public class UtilTest {
       assertEquals("g(r_sub, p_sub) == p_attr", Util.escapeAssertion("g(r.sub, p.sub) == p.attr"));
       assertEquals("g(r_sub,p_sub) == p_attr", Util.escapeAssertion("g(r.sub,p.sub) == p.attr"));
       assertEquals("(r_attp.value || p_attr)p_u", Util.escapeAssertion("(r.attp.value || p.attr)p.u"));
+      assertEquals("r_obj == \"https://p.example.com\"", Util.escapeAssertion("r.obj == \"https://p.example.com\""));
+      assertEquals("r_obj == 'https://p.example.com' && p_sub == r_sub", Util.escapeAssertion("r.obj == 'https://p.example.com' && p.sub == r.sub"));
+      assertEquals("r_obj == \"a\\\"p.b\" || p_obj == 'r.c'", Util.escapeAssertion("r.obj == \"a\\\"p.b\" || p.obj == 'r.c'"));
   }
 
     @Test

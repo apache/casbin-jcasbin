@@ -146,12 +146,38 @@ public class Util {
 
     /**
      * escapeAssertion escapes the dots in the assertion, because the expression
-     * evaluation doesn't support such variable names.
+     * evaluation doesn't support such variable names. Quoted string literals
+     * are kept as they are.
      *
      * @param s the value of the matcher and effect assertions.
      * @return the escaped value.
      */
     public static String escapeAssertion(String s) {
+        StringBuilder sb = new StringBuilder();
+        int start = 0;
+        for (int i = 0; i < s.length(); i++) {
+            char quote = s.charAt(i);
+            if (quote != '"' && quote != '\'') {
+                continue;
+            }
+            int end = i + 1;
+            while (end < s.length() && s.charAt(end) != quote) {
+                if (s.charAt(end) == '\\') {
+                    end++;
+                }
+                end++;
+            }
+            end = Math.min(end + 1, s.length());
+            sb.append(escapeAssertionUnquoted(s.substring(start, i)));
+            sb.append(s, i, end);
+            start = end;
+            i = end - 1;
+        }
+        sb.append(escapeAssertionUnquoted(s.substring(start)));
+        return sb.toString();
+    }
+
+    private static String escapeAssertionUnquoted(String s) {
         Matcher m = escapeAssertionRegex.matcher(s);
         StringBuffer sb = new StringBuffer();
 
