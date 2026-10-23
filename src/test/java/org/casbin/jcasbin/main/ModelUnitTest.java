@@ -20,11 +20,13 @@ package org.casbin.jcasbin.main;
 import com.googlecode.aviator.runtime.function.FunctionUtils;
 import com.googlecode.aviator.runtime.type.AviatorBoolean;
 import com.googlecode.aviator.runtime.type.AviatorObject;
+import org.casbin.jcasbin.model.Model;
 import org.casbin.jcasbin.persist.file_adapter.AdapterMock;
 import org.casbin.jcasbin.rbac.RoleManager;
 import org.casbin.jcasbin.util.BuiltInFunctions;
 import org.casbin.jcasbin.util.Util;
 import org.casbin.jcasbin.util.function.CustomFunction;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.*;
@@ -36,6 +38,8 @@ import static org.casbin.jcasbin.main.TestUtil.testDomainEnforce;
 import static org.casbin.jcasbin.main.TestUtil.testEnforce;
 import static org.casbin.jcasbin.main.TestUtil.testEnforceWithoutUsers;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 public class ModelUnitTest {
     @Test
@@ -176,6 +180,102 @@ public class ModelUnitTest {
         testDomainEnforce(e, "bob", "domain2", "data1", "write", false);
         testDomainEnforce(e, "bob", "domain2", "data2", "read", true);
         testDomainEnforce(e, "bob", "domain2", "data2", "write", true);
+    }
+
+    @Test
+    public void testResourceMatchingDoesNotEnableDomainMatching() {
+        Model m = new Model();
+        m.addDef("r", "r", "sub, obj, act, dom");
+        m.addDef("p", "p", "sub, obj, act, dom");
+        m.addDef("g", "g", "_, _, _");
+        m.addDef("e", "e", "some(where (p.eft == allow))");
+        m.addDef("m", "m", "g(r.sub, p.sub, r.dom) && r.dom == p.dom && keyMatch(r.obj, p.obj) && r.act == p.act");
+        Enforcer e = new Enforcer(m);
+        e.addPolicy("admin", "/data/*", "read", "tenantA");
+        e.addGroupingPolicy("alice", "admin", "tenant*");
+        e.addGroupingPolicy("bob", "admin", "tenantA");
+
+        assertFalse(e.enforce("alice", "/data/1", "read", "tenantA"));
+        assertTrue(e.enforce("bob", "/data/1", "read", "tenantA"));
+
+        e.addNamedDomainMatchingFunc("g", "keyMatch", BuiltInFunctions::keyMatch);
+        assertTrue(e.enforce("alice", "/data/1", "read", "tenantA"));
+    }
+
+    @DataProvider(name = "domainRoleCalls")
+    public Object[][] domainRoleCalls() {
+        return new Object[][] {
+            {"g2(r.sub,p.sub,r.tenant)"},
+            {"g2((r.sub),'admin',r.tenant)"}
+        };
+    }
+
+    @Test(dataProvider = "domainRoleCalls")
+    public void testDomainMatchingUsesRoleDomainArgument(String roleCall) {
+        Model m = new Model();
+        m.addDef("r", "r", "sub, obj, act, tenant");
+        m.addDef("p", "p", "sub, obj, act, tenant");
+        m.addDef("g", "g2", "_, _, _");
+        m.addDef("e", "e", "some(where (p.eft == allow))");
+        m.addDef("m", "m", roleCall + " && keyMatch(r.tenant,p.tenant) && r.obj == p.obj && r.act == p.act");
+        Enforcer e = new Enforcer(m);
+        e.addPolicy("admin", "data", "read", "tenant*");
+        e.addNamedGroupingPolicy("g2", "alice", "admin", "tenant*");
+
+        assertTrue(e.enforce("alice", "data", "read", "tenantA"));
+        assertFalse(e.enforce("alice", "data", "read", "other"));
+        assertFalse(e.enforce("bob", "data", "read", "tenantA"));
+    }
+
+    @Test
+    public void testQuotedDomainMatcherDoesNotEnableDomainMatching() {
+        Model m = new Model();
+        m.addDef("r", "r", "sub, dom, obj, act");
+        m.addDef("p", "p", "sub, dom, obj, act");
+        m.addDef("g", "g", "_, _, _");
+        m.addDef("e", "e", "some(where (p.eft == allow))");
+        m.addDef("m", "m", "g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act && r.obj != 'keyMatch(r_dom, p_dom)'");
+        Enforcer e = new Enforcer(m);
+        e.addPolicy("admin", "tenantA", "data", "read");
+        e.addGroupingPolicy("alice", "admin", "tenant*");
+        e.addGroupingPolicy("bob", "admin", "tenantA");
+
+        assertFalse(e.enforce("alice", "tenantA", "data", "read"));
+        assertTrue(e.enforce("bob", "tenantA", "data", "read"));
+    }
+
+    @Test
+    public void testConditionalDomainMatchingPreservesConditions() {
+        Model m = new Model();
+        m.addDef("r", "r", "sub, dom, obj, act");
+        m.addDef("p", "p", "sub, dom, obj, act");
+        m.addDef("g", "g", "_, _, _, (_, _)");
+        m.addDef("e", "e", "some(where (p.eft == allow))");
+        m.addDef("m", "m", "g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act");
+        Enforcer e = new Enforcer(m);
+        e.addPolicy("admin", "tenantA", "data", "read");
+        e.addPolicy("admin", "tenantB", "data", "read");
+        e.addGroupingPolicy("alice", "admin", "tenant*", "deny", "_");
+        e.addGroupingPolicy("bob", "reader", "tenantA", "_", "_");
+        e.addNamedDomainLinkConditionFunc("g", "alice", "admin", "tenant*", params -> "allow".equals(params[0]));
+        e.setNamedDomainLinkConditionFuncParams("g", "alice", "admin", "tenant*", "deny", "_");
+
+        assertFalse(e.enforce("alice", "tenantA", "data", "read"));
+        e.addNamedDomainMatchingFunc("g", "keyMatch", BuiltInFunctions::keyMatch);
+        assertFalse(e.enforce("alice", "tenantA", "data", "read"));
+        assertFalse(e.enforce("alice", "tenantB", "data", "read"));
+
+        e.setNamedDomainLinkConditionFuncParams("g", "alice", "admin", "tenant*", "allow", "_");
+        assertTrue(e.enforce("alice", "tenantA", "data", "read"));
+        assertTrue(e.enforce("alice", "tenantB", "data", "read"));
+
+        e.addNamedDomainMatchingFunc("g", "keyMatch", BuiltInFunctions::keyMatch);
+        assertTrue(e.enforce("alice", "tenantA", "data", "read"));
+        assertTrue(e.enforce("alice", "tenantB", "data", "read"));
+
+        e.setNamedDomainLinkConditionFuncParams("g", "alice", "admin", "tenant*", "deny", "_");
+        assertFalse(e.enforce("alice", "tenantA", "data", "read"));
+        assertFalse(e.enforce("alice", "tenantB", "data", "read"));
     }
 
     @Test
