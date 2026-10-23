@@ -52,16 +52,20 @@ public class ConditionalDomainManager extends ConditionalRoleManager {
         Map<String, ConditionalRoleManager> rmMap = new HashMap<>(this.rmMap);
         clear();
         rmMap.forEach((domain, rm) -> {
-            rm.allRoles.values().forEach(user -> {
-                user.roles.keySet().forEach(roleName -> addLink(user.getName(), roleName, domain));
-            });
+            ConditionalRoleManager newRm = new ConditionalRoleManager(this.maxHierarchyLevel, this.matchingFunc, this.domainMatchingFunc);
+            newRm.copyFrom(rm);
+            this.rmMap.put(domain, newRm);
         });
-        rmMap.forEach((domain, rm) -> {
-            ConditionalRoleManager newRm = getRoleManager(domain, true);
-            rm.allRoles.values().forEach(user -> {
-                user.roles.keySet().forEach(roleName -> newRm.getRole(user.getName()).copyLinkConditions(user, roleName));
+        // Copy complete links from the snapshot so propagated links retain their conditions.
+        if (this.domainMatchingFunc != null) {
+            this.rmMap.forEach((domain, rm) -> {
+                rmMap.forEach((pattern, source) -> {
+                    if (!domain.equals(pattern) && matchDomain(domain, pattern)) {
+                        rm.copyFrom(source);
+                    }
+                });
             });
-        });
+        }
     }
 
     private String domainName(String... domain) {

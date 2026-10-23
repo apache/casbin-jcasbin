@@ -46,11 +46,16 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * CoreEnforcer defines the core functionality of an enforcer.
  */
 public class CoreEnforcer {
+    private static final Pattern STRING_LITERAL = Pattern.compile("'(?:\\\\.|[^'\\\\])*'|\"(?:\\\\.|[^\"\\\\])*\"");
+    private static final Pattern MATCHER_FUNCTION_CALL = Pattern.compile("(?<![\\w.])(\\w+)\\s*\\(");
+
     String modelPath;
     Model model;
     FunctionMap fm;
@@ -409,13 +414,46 @@ public class CoreEnforcer {
     private void registerDomainMatchingFunc(String ptype) {
         Assertion r = model.model.getOrDefault("r", Collections.emptyMap()).get("r");
         Assertion p = model.model.getOrDefault("p", Collections.emptyMap()).get("p");
-        if (r == null || p == null || r.tokens.length < 2 || p.tokens.length < 2) {
+        if (r == null || p == null) {
             return;
         }
-        String matchFun = "keyMatch(" + r.tokens[1] + ", " + p.tokens[1] + ")";
-        if (model.model.get("m").get("m").value.contains(matchFun)) {
+        String matcher = STRING_LITERAL.matcher(model.model.get("m").get("m").value).replaceAll("\"\"");
+        Matcher calls = MATCHER_FUNCTION_CALL.matcher(matcher);
+        Set<String> domainTokens = new HashSet<>();
+        Set<String> matchedTokens = new HashSet<>();
+        while (calls.find()) {
+            List<String> args = getMatcherFunctionArguments(matcher, calls.end());
+            if (ptype.equals(calls.group(1)) && args.size() == 3 && Arrays.asList(r.tokens).contains(args.get(2))) {
+                domainTokens.add(args.get(2));
+            } else if ("keyMatch".equals(calls.group(1)) && args.size() == 2
+                && Arrays.asList(p.tokens).contains(args.get(1))) {
+                matchedTokens.add(args.get(0));
+            }
+        }
+        // Resource matching must not change how the role function's domain is resolved.
+        if (!Collections.disjoint(domainTokens, matchedTokens)) {
             addNamedDomainMatchingFunc(ptype, "g", BuiltInFunctions::keyMatch);
         }
+    }
+
+    private static List<String> getMatcherFunctionArguments(String matcher, int start) {
+        List<String> args = new ArrayList<>();
+        int depth = 1;
+        for (int i = start; i < matcher.length(); i++) {
+            char c = matcher.charAt(i);
+            if (c == '(' || c == '[' || c == '{') {
+                depth++;
+            } else if (c == ')' || c == ']' || c == '}') {
+                if (--depth == 0) {
+                    args.add(matcher.substring(start, i).trim());
+                    return args;
+                }
+            } else if (c == ',' && depth == 1) {
+                args.add(matcher.substring(start, i).trim());
+                start = i + 1;
+            }
+        }
+        return Collections.emptyList();
     }
 
     /**
