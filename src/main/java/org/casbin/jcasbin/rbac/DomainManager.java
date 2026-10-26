@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiPredicate;
 
 /**
@@ -114,7 +115,7 @@ public class DomainManager implements RoleManager {
     @Override
     public void clear() {
         this.rmMap = new HashMap<>();
-        this.matchedRmMap = new HashMap<>();
+        this.matchedRmMap = new ConcurrentHashMap<>();
         this.domainMatchingFuncCache = new SyncedLRUCache<>(100);
     }
 
