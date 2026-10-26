@@ -67,6 +67,10 @@ public class ConditionalDomainManager extends ConditionalRoleManager {
     }
 
     private ConditionalRoleManager getMatchedRoleManager(String domain) {
+        if (this.domainMatchingFunc == null) {
+            ConditionalRoleManager rm = this.rmMap.get(domain);
+            return rm != null ? rm : new ConditionalRoleManager(this.maxHierarchyLevel, this.matchingFunc, null);
+        }
         ConditionalRoleManager rm = this.matchedRmMap.get(domain);
         if (rm == null) {
             rm = new ConditionalRoleManager(this.maxHierarchyLevel, this.matchingFunc, this.domainMatchingFunc);

@@ -325,12 +325,43 @@ public class ModelUnitTest {
         assertFalse(e.enforce("bob1", "tenantA", "data", "read"));
     }
 
-    @DataProvider(name = "conditionalDomainReconfiguration")
-    public Object[][] conditionalDomainReconfiguration() {
+    @DataProvider(name = "domainReconfiguration")
+    public Object[][] domainReconfiguration() {
         return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
     }
 
-    @Test(dataProvider = "conditionalDomainReconfiguration")
+    @Test(dataProvider = "domainReconfiguration")
+    public void testDomainMatchingCanBeNarrowed(boolean matchBeforeLinks, boolean existingDomain) {
+        Model m = new Model();
+        m.addDef("r", "r", "sub, dom, obj, act");
+        m.addDef("p", "p", "sub, dom, obj, act");
+        m.addDef("g", "g", "_, _, _");
+        m.addDef("e", "e", "some(where (p.eft == allow))");
+        m.addDef("m", "m", "g(r.sub, p.sub, r.dom) && r.dom == p.dom && r.obj == p.obj && r.act == p.act");
+        Enforcer e = new Enforcer(m);
+        e.addPolicy("admin", "tenantA", "data", "read");
+        if (matchBeforeLinks) {
+            e.addNamedDomainMatchingFunc("g", "keyMatch", BuiltInFunctions::keyMatch);
+        }
+        if (existingDomain) {
+            e.addGroupingPolicy("bob", "admin", "tenantA");
+        }
+        e.addGroupingPolicy("alice", "admin", "tenant*");
+        if (!matchBeforeLinks) {
+            e.addNamedDomainMatchingFunc("g", "keyMatch", BuiltInFunctions::keyMatch);
+        }
+        assertTrue(e.enforce("alice", "tenantA", "data", "read"));
+
+        e.addNamedDomainMatchingFunc("g", "exact", String::equals);
+        assertFalse(e.enforce("alice", "tenantA", "data", "read"));
+        assertEquals(e.enforce("bob", "tenantA", "data", "read"), existingDomain);
+        e.addNamedDomainMatchingFunc("g", "keyMatch", BuiltInFunctions::keyMatch);
+        assertTrue(e.enforce("alice", "tenantA", "data", "read"));
+        assertTrue(e.removeGroupingPolicy("alice", "admin", "tenant*"));
+        assertFalse(e.enforce("alice", "tenantA", "data", "read"));
+    }
+
+    @Test(dataProvider = "domainReconfiguration")
     public void testConditionalDomainMatchingCanBeNarrowed(boolean matchBeforeLinks, boolean existingDomain) {
         Model m = new Model();
         m.addDef("r", "r", "sub, dom, obj, act");

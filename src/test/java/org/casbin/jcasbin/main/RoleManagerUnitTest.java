@@ -52,21 +52,25 @@ public class RoleManagerUnitTest {
 
     @Test
     public void testDeletingPatternLinkPreservesExplicitDomainLink() {
-        ConditionalDomainManager rm = new ConditionalDomainManager(10);
-        rm.addDomainMatchingFunc("keyMatch", BuiltInFunctions::keyMatch);
-        rm.addLink("alice", "admin", "tenant*");
-        rm.addLink("alice", "admin", "tenantA");
-        TestUtil.testHasRole(rm, "alice", "admin", "tenantA", true);
-        TestUtil.testHasRole(rm, "alice", "admin", "tenantB", true);
+        DomainManager standard = new DomainManager(10);
+        standard.addDomainMatchingFunc("keyMatch", BuiltInFunctions::keyMatch);
+        ConditionalDomainManager conditional = new ConditionalDomainManager(10);
+        conditional.addDomainMatchingFunc("keyMatch", BuiltInFunctions::keyMatch);
+        for (RoleManager rm : Arrays.asList(standard, conditional)) {
+            rm.addLink("alice", "admin", "tenant*");
+            rm.addLink("alice", "admin", "tenantA");
+            TestUtil.testHasRole(rm, "alice", "admin", "tenantA", true);
+            TestUtil.testHasRole(rm, "alice", "admin", "tenantB", true);
 
-        rm.deleteLink("alice", "admin", "tenant*");
-        TestUtil.testHasRole(rm, "alice", "admin", "tenantA", true);
-        TestUtil.testHasRole(rm, "alice", "admin", "tenantB", false);
-        TestUtil.testGetRoles(rm, "alice", "tenantA", Collections.singletonList("admin"));
-        assertEquals(rm.getUsers("admin", "tenantA"), Collections.singletonList("alice"));
+            rm.deleteLink("alice", "admin", "tenant*");
+            TestUtil.testHasRole(rm, "alice", "admin", "tenantA", true);
+            TestUtil.testHasRole(rm, "alice", "admin", "tenantB", false);
+            TestUtil.testGetRoles(rm, "alice", "tenantA", Collections.singletonList("admin"));
+            assertEquals(rm.getUsers("admin", "tenantA"), Collections.singletonList("alice"));
 
-        rm.clear();
-        TestUtil.testHasRole(rm, "alice", "admin", "tenantA", false);
+            rm.clear();
+            TestUtil.testHasRole(rm, "alice", "admin", "tenantA", false);
+        }
     }
 
     @Test
