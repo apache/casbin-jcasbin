@@ -19,6 +19,7 @@ package org.casbin.jcasbin.main;
 
 import org.casbin.jcasbin.rbac.DefaultRoleManager;
 import org.casbin.jcasbin.rbac.ConditionalRoleManager;
+import org.casbin.jcasbin.rbac.ConditionalDomainManager;
 import org.casbin.jcasbin.rbac.DomainManager;
 import org.casbin.jcasbin.rbac.RoleManager;
 import org.casbin.jcasbin.util.BuiltInFunctions;
@@ -26,6 +27,8 @@ import org.testng.annotations.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
+
+import static org.testng.Assert.assertEquals;
 
 /**
  * @author Yixiang Zhao (@seriouszyx)
@@ -45,6 +48,44 @@ public class RoleManagerUnitTest {
         rm.addMatchingFunc("exact", String::equals);
         rm.setLinkConditionFuncParams("alice", "admin", "deny");
         TestUtil.testHasRole(rm, "alice", "admin", false);
+    }
+
+    @Test
+    public void testDeletingPatternLinkPreservesExplicitDomainLink() {
+        DomainManager standard = new DomainManager(10);
+        standard.addDomainMatchingFunc("keyMatch", BuiltInFunctions::keyMatch);
+        ConditionalDomainManager conditional = new ConditionalDomainManager(10);
+        conditional.addDomainMatchingFunc("keyMatch", BuiltInFunctions::keyMatch);
+        for (RoleManager rm : Arrays.asList(standard, conditional)) {
+            rm.addLink("alice", "admin", "tenant*");
+            rm.addLink("alice", "admin", "tenantA");
+            TestUtil.testHasRole(rm, "alice", "admin", "tenantA", true);
+            TestUtil.testHasRole(rm, "alice", "admin", "tenantB", true);
+
+            rm.deleteLink("alice", "admin", "tenant*");
+            TestUtil.testHasRole(rm, "alice", "admin", "tenantA", true);
+            TestUtil.testHasRole(rm, "alice", "admin", "tenantB", false);
+            TestUtil.testGetRoles(rm, "alice", "tenantA", Collections.singletonList("admin"));
+            assertEquals(rm.getUsers("admin", "tenantA"), Collections.singletonList("alice"));
+
+            rm.clear();
+            TestUtil.testHasRole(rm, "alice", "admin", "tenantA", false);
+        }
+    }
+
+    @Test
+    public void testDomainConditionsRegisteredBeforePatternLinks() {
+        ConditionalDomainManager rm = new ConditionalDomainManager(10);
+        rm.addDomainMatchingFunc("keyMatch", BuiltInFunctions::keyMatch);
+        rm.addDomainLinkConditionFunc("alice", "admin", "tenantA", params -> "allow".equals(params[0]));
+        rm.setDomainLinkConditionFuncParams("alice", "admin", "tenantA", "deny");
+        rm.addLink("alice", "admin", "tenant*");
+        TestUtil.testHasRole(rm, "alice", "admin", "tenantA", false);
+
+        rm.setDomainLinkConditionFuncParams("alice", "admin", "tenantA", "allow");
+        TestUtil.testHasRole(rm, "alice", "admin", "tenantA", true);
+        rm.addDomainLinkConditionFunc("alice", "admin", "tenantA", params -> false);
+        TestUtil.testHasRole(rm, "alice", "admin", "tenantA", false);
     }
 
     @Test

@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 
 /**
@@ -32,7 +31,9 @@ import java.util.function.BiPredicate;
  **/
 public class DomainManager implements RoleManager {
     private static final String DEFAULT_DOMAIN = "casbin::default";
+    // Keep explicit links separate from the domain views built by matching.
     private Map<String, DefaultRoleManager> rmMap;
+    private Map<String, DefaultRoleManager> matchedRmMap;
     private int maxHierarchyLevel;
     private BiPredicate<String, String> matchingFunc;
     private BiPredicate<String, String> domainMatchingFunc;
@@ -53,45 +54,44 @@ public class DomainManager implements RoleManager {
     public void addMatchingFunc(String name, BiPredicate<String, String> matchingFunc) {
         this.matchingFunc = matchingFunc;
         this.rmMap.values().forEach(rm -> rm.addMatchingFunc(name, matchingFunc));
+        this.matchedRmMap.clear();
     }
 
     public void addDomainMatchingFunc(String name, BiPredicate<String, String> domainMatchingFunc) {
         this.domainMatchingFunc = domainMatchingFunc;
-        rebuild();
-    }
-
-    /**
-     * rebuild clears the map of RoleManagers
-     */
-    private void rebuild() {
-        Map<String, DefaultRoleManager> rmMap = new HashMap<>(this.rmMap);
-        clear();
-        rmMap.forEach((domain, rm) -> {
-            rm.allRoles.values().forEach(user -> {
-                user.roles.keySet().forEach(roleName -> addLink(user.getName(), roleName, domain));
-            });
-        });
+        this.domainMatchingFuncCache = new SyncedLRUCache<>(100);
+        this.matchedRmMap.clear();
     }
 
     private String domainName(String... domain) {
         return domain.length == 0 ? DEFAULT_DOMAIN : domain[0];
     }
 
-    private DefaultRoleManager getRoleManager(String domain, boolean store) {
+    private DefaultRoleManager getRoleManager(String domain) {
         DefaultRoleManager rm = this.rmMap.get(domain);
         if (rm == null) {
             rm = new DefaultRoleManager(this.maxHierarchyLevel, this.matchingFunc, null);
-            if (store) {
-                this.rmMap.put(domain, rm);
-            }
-            if (this.domainMatchingFunc != null) {
-                for (Map.Entry<String, DefaultRoleManager> entry : this.rmMap.entrySet()) {
-                    String domain2 = entry.getKey();
-                    DefaultRoleManager rm2 = entry.getValue();
-                    if (!domain.equals(domain2) && match(domain, domain2)) {
-                        rm.copyFrom(rm2);
-                    }
+            this.rmMap.put(domain, rm);
+        }
+        return rm;
+    }
+
+    private DefaultRoleManager getMatchedRoleManager(String domain) {
+        if (this.domainMatchingFunc == null) {
+            DefaultRoleManager rm = this.rmMap.get(domain);
+            return rm != null ? rm : new DefaultRoleManager(this.maxHierarchyLevel, this.matchingFunc, null);
+        }
+        DefaultRoleManager rm = this.matchedRmMap.get(domain);
+        if (rm == null) {
+            rm = new DefaultRoleManager(this.maxHierarchyLevel, this.matchingFunc, null);
+            for (Map.Entry<String, DefaultRoleManager> entry : this.rmMap.entrySet()) {
+                if (domain.equals(entry.getKey()) || match(domain, entry.getKey())) {
+                    rm.copyFrom(entry.getValue());
                 }
+            }
+            // Do not retain views for arbitrary domains supplied by requests.
+            if (this.rmMap.containsKey(domain)) {
+                this.matchedRmMap.put(domain, rm);
             }
         }
         return rm;
@@ -114,52 +114,39 @@ public class DomainManager implements RoleManager {
     @Override
     public void clear() {
         this.rmMap = new HashMap<>();
+        this.matchedRmMap = new HashMap<>();
         this.domainMatchingFuncCache = new SyncedLRUCache<>(100);
     }
 
     @Override
     public void addLink(String name1, String name2, String... domain) {
-        DefaultRoleManager roleManager = getRoleManager(domainName(domain), true);
+        DefaultRoleManager roleManager = getRoleManager(domainName(domain));
         roleManager.addLink(name1, name2, domain);
-
-        if (this.domainMatchingFunc != null) {
-            this.rmMap.forEach((domain2, rm) -> {
-                if (!domainName(domain).equals(domain2) && match(domain2, domainName(domain))) {
-                    rm.addLink(name1, name2, domain);
-                }
-            });
-        }
+        this.matchedRmMap.clear();
     }
 
     @Override
     public void deleteLink(String name1, String name2, String... domain) {
-        DefaultRoleManager roleManager = getRoleManager(domainName(domain), true);
+        DefaultRoleManager roleManager = getRoleManager(domainName(domain));
         roleManager.deleteLink(name1, name2, domain);
-
-        if (this.domainMatchingFunc != null) {
-            this.rmMap.forEach((domain2, rm) -> {
-                if (!domainName(domain).equals(domain2) && match(domain2, domainName(domain))) {
-                    rm.deleteLink(name1, name2, domain);
-                }
-            });
-        }
+        this.matchedRmMap.clear();
     }
 
     @Override
     public boolean hasLink(String name1, String name2, String... domain) {
-        DefaultRoleManager roleManager = getRoleManager(domainName(domain), false);
+        DefaultRoleManager roleManager = getMatchedRoleManager(domainName(domain));
         return roleManager.hasLink(name1, name2, domain);
     }
 
     @Override
     public List<String> getRoles(String name, String... domain) {
-        DefaultRoleManager roleManager = getRoleManager(domainName(domain), false);
+        DefaultRoleManager roleManager = getMatchedRoleManager(domainName(domain));
         return roleManager.getRoles(name, domain);
     }
 
     @Override
     public List<String> getUsers(String name, String... domain) {
-        DefaultRoleManager roleManager = getRoleManager(domainName(domain), false);
+        DefaultRoleManager roleManager = getMatchedRoleManager(domainName(domain));
         return roleManager.getUsers(name, domain);
     }
 
