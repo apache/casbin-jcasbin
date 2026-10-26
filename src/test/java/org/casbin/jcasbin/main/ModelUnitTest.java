@@ -278,6 +278,53 @@ public class ModelUnitTest {
         assertFalse(e.enforce("alice", "tenantB", "data", "read"));
     }
 
+    @DataProvider(name = "conditionalRoleMatching")
+    public Object[][] conditionalRoleMatching() {
+        return new Object[][] {{"g", false}, {"g2", false}, {"g", true}, {"g2", true}};
+    }
+
+    @Test(dataProvider = "conditionalRoleMatching")
+    public void testNamedRoleMatchingPreservesConditions(String ptype, boolean withDomain) {
+        Model m = new Model();
+        m.addDef("r", "r", "sub, dom, obj, act");
+        m.addDef("p", "p", "sub, dom, obj, act");
+        m.addDef("g", ptype, withDomain ? "_, _, _, (_, _)" : "_, _, (_, _)");
+        m.addDef("e", "e", "some(where (p.eft == allow))");
+        m.addDef("m", "m", ptype + (withDomain ? "(r.sub, p.sub, r.dom)" : "(r.sub, p.sub)")
+            + " && r.dom == p.dom && r.obj == p.obj && r.act == p.act");
+        Enforcer e = new Enforcer(m);
+        e.addPolicy("admin", "tenantA", "data", "read");
+        if (withDomain) {
+            e.addNamedGroupingPolicy(ptype, "alice", "admin", "tenantA", "deny", "_");
+            e.addNamedGroupingPolicy(ptype, "bob*", "admin", "tenantA", "_", "_");
+            e.addNamedDomainLinkConditionFunc(ptype, "alice", "admin", "tenantA", params -> "allow".equals(params[0]));
+            e.setNamedDomainLinkConditionFuncParams(ptype, "alice", "admin", "tenantA", "deny", "_");
+        } else {
+            e.addNamedGroupingPolicy(ptype, "alice", "admin", "deny", "_");
+            e.addNamedGroupingPolicy(ptype, "bob*", "admin", "_", "_");
+            e.addNamedLinkConditionFunc(ptype, "alice", "admin", params -> "allow".equals(params[0]));
+            e.setNamedLinkConditionFuncParams(ptype, "alice", "admin", "deny", "_");
+        }
+        assertFalse(e.enforce("alice", "tenantA", "data", "read"));
+        assertFalse(e.enforce("bob1", "tenantA", "data", "read"));
+
+        assertTrue(e.addNamedMatchingFunc(ptype, "keyMatch", BuiltInFunctions::keyMatch));
+        assertFalse(e.enforce("alice", "tenantA", "data", "read"));
+        assertTrue(e.enforce("bob1", "tenantA", "data", "read"));
+        assertTrue(e.addNamedMatchingFunc(ptype, "keyMatch", BuiltInFunctions::keyMatch));
+        assertFalse(e.enforce("alice", "tenantA", "data", "read"));
+
+        if (withDomain) {
+            e.setNamedDomainLinkConditionFuncParams(ptype, "alice", "admin", "tenantA", "allow", "_");
+        } else {
+            e.setNamedLinkConditionFuncParams(ptype, "alice", "admin", "allow", "_");
+        }
+        assertTrue(e.enforce("alice", "tenantA", "data", "read"));
+        assertTrue(e.addNamedMatchingFunc(ptype, "exact", String::equals));
+        assertTrue(e.enforce("alice", "tenantA", "data", "read"));
+        assertFalse(e.enforce("bob1", "tenantA", "data", "read"));
+    }
+
     @Test
     public void testRBACModelWithDomainsAtRuntime() {
         Enforcer e = new Enforcer("examples/rbac_with_domains_model.conf");

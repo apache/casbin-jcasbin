@@ -835,16 +835,15 @@ public class CoreEnforcer {
      * @return whether the matching function was successfully added.
      */
     public boolean addNamedMatchingFunc(String ptype, String name, BiPredicate<String, String> fn) {
-        if (rmMap.containsKey(ptype)) {
-            DomainManager rm = (DomainManager) rmMap.get(ptype);
-            rm.addMatchingFunc(name, fn);
-//            clearRmMap();
-//            if (autoBuildRoleLinks) {
-//                buildRoleLinks();
-//            }
-            return true;
+        RoleManager rm = rmMap.get(ptype);
+        if (rm instanceof DomainManager) {
+            ((DomainManager) rm).addMatchingFunc(name, fn);
+        } else if (rm instanceof DefaultRoleManager) {
+            ((DefaultRoleManager) rm).addMatchingFunc(name, fn);
+        } else {
+            return false;
         }
-        return false;
+        return true;
     }
 
     /**

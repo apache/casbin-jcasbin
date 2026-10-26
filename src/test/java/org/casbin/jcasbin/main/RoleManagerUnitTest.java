@@ -18,6 +18,7 @@
 package org.casbin.jcasbin.main;
 
 import org.casbin.jcasbin.rbac.DefaultRoleManager;
+import org.casbin.jcasbin.rbac.ConditionalRoleManager;
 import org.casbin.jcasbin.rbac.DomainManager;
 import org.casbin.jcasbin.rbac.RoleManager;
 import org.casbin.jcasbin.util.BuiltInFunctions;
@@ -30,6 +31,22 @@ import java.util.Collections;
  * @author Yixiang Zhao (@seriouszyx)
  **/
 public class RoleManagerUnitTest {
+    @Test
+    public void testMatchingPreservesConditionsRegisteredBeforeLinks() {
+        ConditionalRoleManager rm = new ConditionalRoleManager(10);
+        rm.addLinkConditionFunc("alice", "admin", params -> "allow".equals(params[0]));
+        rm.setLinkConditionFuncParams("alice", "admin", "deny");
+        rm.addMatchingFunc("keyMatch", BuiltInFunctions::keyMatch);
+        rm.addLink("alice", "admin");
+        TestUtil.testHasRole(rm, "alice", "admin", false);
+
+        rm.setLinkConditionFuncParams("alice", "admin", "allow");
+        TestUtil.testHasRole(rm, "alice", "admin", true);
+        rm.addMatchingFunc("exact", String::equals);
+        rm.setLinkConditionFuncParams("alice", "admin", "deny");
+        TestUtil.testHasRole(rm, "alice", "admin", false);
+    }
+
     @Test
     public void testRole() {
         RoleManager rm = new DefaultRoleManager(3);
