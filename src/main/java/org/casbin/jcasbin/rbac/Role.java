@@ -173,17 +173,9 @@ class Role {
         return linkConditionFuncMap;
     }
 
-    void copyLinkConditions(Role other, String roleName) {
-        other.linkConditionFuncMap.forEach((key, fn) -> {
-            if (key.getRoleName().equals(roleName)) {
-                linkConditionFuncMap.put(key, fn);
-            }
-        });
-        other.linkConditionFuncParamsMap.forEach((key, params) -> {
-            if (key.getRoleName().equals(roleName)) {
-                linkConditionFuncParamsMap.put(key, params);
-            }
-        });
+    void copyLinkConditions(Role other) {
+        linkConditionFuncMap.putAll(other.linkConditionFuncMap);
+        linkConditionFuncParamsMap.putAll(other.linkConditionFuncParamsMap);
     }
 
     void setLinkConditionFuncParams(Role role, String domain, String... params){

@@ -34,12 +34,23 @@ public class ConditionalRoleManager extends DefaultRoleManager{
         this.domainMatchingFunc = domainMatchingFunc;
     }
 
+    @Override
+    public void addMatchingFunc(String name, BiPredicate<String, String> matchingFunc) {
+        Collection<Role> roles = this.allRoles.values();
+        this.matchingFunc = matchingFunc;
+        clear();
+        copyRoles(roles);
+    }
+
     void copyFrom(ConditionalRoleManager other) {
-        other.allRoles.values().forEach(user -> {
-            user.roles.keySet().forEach(roleName -> {
-                addLink(user.getName(), roleName);
-                getRole(user.getName()).copyLinkConditions(user, roleName);
-            });
+        copyRoles(other.allRoles.values());
+    }
+
+    private void copyRoles(Collection<Role> roles) {
+        roles.forEach(user -> {
+            user.roles.keySet().forEach(roleName -> addLink(user.getName(), roleName));
+            // Conditions can be registered before their links are added.
+            getRole(user.getName()).copyLinkConditions(user);
         });
     }
 
