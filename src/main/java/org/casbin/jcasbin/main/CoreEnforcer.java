@@ -20,11 +20,6 @@ package org.casbin.jcasbin.main;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.googlecode.aviator.AviatorEvaluator;
-import com.googlecode.aviator.AviatorEvaluatorInstance;
-import com.googlecode.aviator.Expression;
-import com.googlecode.aviator.runtime.type.AviatorBoolean;
-import com.googlecode.aviator.runtime.type.AviatorFunction;
 import org.casbin.jcasbin.effect.DefaultEffector;
 import org.casbin.jcasbin.effect.Effect;
 import org.casbin.jcasbin.effect.Effector;
@@ -32,6 +27,8 @@ import org.casbin.jcasbin.effect.StreamEffector;
 import org.casbin.jcasbin.exception.CasbinAdapterException;
 import org.casbin.jcasbin.exception.CasbinEffectorException;
 import org.casbin.jcasbin.exception.CasbinMatcherException;
+import org.casbin.jcasbin.expression.Expression;
+import org.casbin.jcasbin.expression.ExpressionFunction;
 import org.casbin.jcasbin.model.Assertion;
 import org.casbin.jcasbin.model.FunctionMap;
 import org.casbin.jcasbin.model.Model;
@@ -55,6 +52,8 @@ import java.util.regex.Pattern;
 public class CoreEnforcer {
     private static final Pattern STRING_LITERAL = Pattern.compile("'(?:\\\\.|[^'\\\\])*'|\"(?:\\\\.|[^\"\\\\])*\"");
     private static final Pattern MATCHER_FUNCTION_CALL = Pattern.compile("(?<![\\w.])(\\w+)\\s*\\(");
+    // A custom matcher may be written as a model line, such as "m = r.sub == p.sub".
+    private static final Pattern MATCHER_KEY_PREFIX = Pattern.compile("^\\s*m\\w*\\s*=(?![=~])");
 
     String modelPath;
     Model model;
@@ -74,8 +73,9 @@ public class CoreEnforcer {
     boolean autoNotifyDispatcher = true;
     boolean acceptJsonRequest = false;
 
-    private AviatorEvaluatorInstance aviatorEval;
-    private final Map<String, Map<String, AviatorBoolean>> gFunctionCache = new ConcurrentHashMap<>();
+    private static final int MAX_CACHED_EXPRESSIONS = 1000;
+    private final Map<String, Expression> expressionCache = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, Boolean>> gFunctionCache = new ConcurrentHashMap<>();
 
     void initialize() {
         rmMap = new HashMap<>();
@@ -87,9 +87,7 @@ public class CoreEnforcer {
         autoSave = adapter instanceof FileAdapter ? false : true;
         autoBuildRoleLinks = true;
         dispatcher = null;
-        aviatorEval = AviatorEvaluator.newInstance();
         initRmMap();
-        initBuiltInFunction();
     }
 
     /**
@@ -165,24 +163,6 @@ public class CoreEnforcer {
     public void setModel(Model model) {
         this.model = model;
         fm = FunctionMap.loadFunctionMap();
-    }
-
-    /**
-     * set the aviator evaluator
-     *
-     * @param evaluator aviator evaluator
-     */
-    public void setAviatorEvaluator(AviatorEvaluatorInstance evaluator) {
-        this.aviatorEval = Objects.requireNonNull(evaluator, "The aviator evaluator cannot be null.");
-    }
-
-    /**
-     * gets the current Aviator Evaluator instance
-     *
-     * @return Aviator Evaluator instance of enforcer
-     */
-    public AviatorEvaluatorInstance getAviatorEval() {
-        return aviatorEval;
     }
 
     /**
@@ -464,17 +444,6 @@ public class CoreEnforcer {
         registerDomainMatchingFunc(ptype);
     }
 
-    private void initBuiltInFunction() {
-        for (Map.Entry<String, AviatorFunction> entry : fm.fm.entrySet()) {
-            AviatorFunction function = entry.getValue();
-
-            if (aviatorEval.containsFunction(function.getName())) {
-                aviatorEval.removeFunction(function.getName());
-            }
-            aviatorEval.addFunction(function);
-        }
-    }
-
     /**
      * clearRmMap clears rmMap.
      */
@@ -574,13 +543,7 @@ public class CoreEnforcer {
             return new EnforceResult(true, new ArrayList<>(Collections.singletonList("The enforcer is not enabled, allow all requests")));
         }
 
-        boolean compileCached = true;
-        if (fm.isModify) {
-            compileCached = false;
-            initBuiltInFunction();
-            fm.isModify = false;
-        }
-        Map<String, AviatorFunction> gFunctions = new HashMap<>();
+        Map<String, ExpressionFunction> functions = new HashMap<>(fm.fm);
         if (model.model.containsKey("g")) {
             for (Map.Entry<String, Assertion> entry : model.model.get("g").entrySet()) {
                 String key = entry.getKey();
@@ -588,25 +551,16 @@ public class CoreEnforcer {
 
                 RoleManager rm = ast.rm;
                 if (rm != null){
-                    AviatorFunction aviatorFunction = BuiltInFunctions.GenerateGFunctionClass.generateGFunction(key, rm, gFunctionCache);
-                    gFunctions.put(key, aviatorFunction);
+                    functions.put(key, BuiltInFunctions.GenerateGFunctionClass.generateGFunction(key, rm, gFunctionCache));
                 }
 
                 ConditionalRoleManager condRM = ast.condRM;
                 if (condRM != null){
-                    AviatorFunction aviatorFunction = BuiltInFunctions.GenerateConditionalGFunctionClass.generateConditionalGFunction(key, condRM, gFunctionCache);
-                    gFunctions.put(key, aviatorFunction);
+                    functions.put(key, BuiltInFunctions.GenerateConditionalGFunctionClass.generateConditionalGFunction(key, condRM, gFunctionCache));
                 }
 
             }
         }
-        for (AviatorFunction f : gFunctions.values()) {
-            if (!aviatorEval.containsFunction(f.getName())) {
-                aviatorEval.addFunction(f);
-                compileCached = false;
-            }
-        }
-        fm.setAviatorEval(aviatorEval);
 
         String rType = "r", pType = "p", eType = "e", mType = "m";
         if (rvals.length != 0) {
@@ -624,7 +578,7 @@ public class CoreEnforcer {
         if (matcher == null || "".equals(matcher)) {
             expString = model.model.get("m").get(mType).value;
         } else {
-            expString = Util.removeComments(Util.escapeAssertion(matcher));
+            expString = Util.removeComments(Util.escapeAssertion(MATCHER_KEY_PREFIX.matcher(matcher).replaceFirst("")));
         }
 
         // json process
@@ -649,9 +603,7 @@ public class CoreEnforcer {
             }
         }
 
-        expString = Util.convertInSyntax(expString);
-        // Use md5 encryption as cacheKey to prevent expString from being too long
-        Expression expression = aviatorEval.compile(Util.md5(expString), expString, compileCached);
+        Expression expression = compileMatcher(expString);
 
         StreamEffector streamEffector = null;
         try {
@@ -679,7 +631,7 @@ public class CoreEnforcer {
                 getPTokens(parameters, pType, pvals, pTokens);
                 getRTokens(parameters, rType, rvals);
 
-                Object result = expression.execute(parameters);
+                Object result = expression.evaluate(parameters, functions);
 
                 if (result instanceof Boolean) {
                     if (!((boolean) result)) {
@@ -690,7 +642,7 @@ public class CoreEnforcer {
                     if (streamEffector == null) {
                         continue;
                     }
-                } else if (result instanceof Double || result instanceof Long) {
+                } else if (result instanceof Number) {
                     if (((Number) result).floatValue() == 0) {
                         policyEffects[i] = Effect.Indeterminate;
                     } else {
@@ -740,7 +692,7 @@ public class CoreEnforcer {
                 parameters.put(token, "");
             }
 
-            Object result = expression.execute(parameters);
+            Object result = expression.evaluate(parameters, functions);
 
             if (streamEffector != null) {
                 if ((boolean) result) {
@@ -1010,7 +962,19 @@ public class CoreEnforcer {
      * need to call it explicitly if you manipulate directly Model.
      */
     public void resetExpressionEvaluator() {
-        fm.setAviatorEval(null);
+        expressionCache.clear();
+    }
+
+    private Expression compileMatcher(String expString) {
+        Expression expression = expressionCache.get(expString);
+        if (expression == null) {
+            expression = Expression.compile(expString);
+            if (expressionCache.size() >= MAX_CACHED_EXPRESSIONS) {
+                expressionCache.clear();
+            }
+            expressionCache.put(expString, expression);
+        }
+        return expression;
     }
 
     public boolean isAutoNotifyWatcher() {

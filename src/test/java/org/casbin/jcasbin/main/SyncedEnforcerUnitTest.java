@@ -17,8 +17,6 @@
 
 package org.casbin.jcasbin.main;
 
-import com.googlecode.aviator.runtime.type.AviatorBoolean;
-import com.googlecode.aviator.runtime.type.AviatorObject;
 import org.casbin.jcasbin.model.Model;
 import org.casbin.jcasbin.persist.Adapter;
 import org.casbin.jcasbin.persist.file_adapter.FileAdapter;
@@ -55,7 +53,7 @@ public class SyncedEnforcerUnitTest {
         volatile boolean block;
 
         @Override
-        public AviatorObject call(Map<String, Object> env, AviatorObject arg) {
+        public Object call(Object... args) {
             if (block) {
                 entered.countDown();
                 try {
@@ -64,7 +62,7 @@ public class SyncedEnforcerUnitTest {
                     Thread.currentThread().interrupt();
                 }
             }
-            return AviatorBoolean.TRUE;
+            return true;
         }
 
         @Override

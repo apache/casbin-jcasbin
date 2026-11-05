@@ -17,8 +17,7 @@
 
 package org.casbin.jcasbin.model;
 
-import com.googlecode.aviator.AviatorEvaluatorInstance;
-import com.googlecode.aviator.runtime.type.AviatorFunction;
+import org.casbin.jcasbin.expression.ExpressionFunction;
 import org.casbin.jcasbin.util.function.*;
 
 import java.util.HashMap;
@@ -29,9 +28,9 @@ import java.util.Map;
  */
 public class FunctionMap {
     /**
-     * AviatorFunction represents a function that is used in the matchers, used to get attributes in ABAC.
+     * fm maps the function names to the functions that can be used in the matchers.
      */
-    public Map<String, AviatorFunction> fm;
+    public Map<String, ExpressionFunction> fm;
 
     public boolean isModify = false;
 
@@ -41,34 +40,9 @@ public class FunctionMap {
      * @param name the name of the new function.
      * @param function the function.
      */
-    public void addFunction(String name, AviatorFunction function) {
+    public void addFunction(String name, ExpressionFunction function) {
         fm.put(name, function);
         isModify=true;
-    }
-
-    /**
-     * setAviatorEval adds AviatorEvaluatorInstance to the custom function.
-     *
-     * @param name        the name of the custom function.
-     * @param aviatorEval the AviatorEvaluatorInstance object.
-     */
-    public void setAviatorEval(String name, AviatorEvaluatorInstance aviatorEval) {
-        if (fm.containsKey(name) && fm.get(name) instanceof CustomFunction) {
-            ((CustomFunction) fm.get(name)).setAviatorEval(aviatorEval);
-        }
-    }
-
-    /**
-     * setAviatorEval adds AviatorEvaluatorInstance to all the custom function.
-     *
-     * @param aviatorEval the AviatorEvaluatorInstance object.
-     */
-    public void setAviatorEval(AviatorEvaluatorInstance aviatorEval) {
-        for (AviatorFunction function : fm.values()) {
-            if (function instanceof CustomFunction) {
-                ((CustomFunction) function).setAviatorEval(aviatorEval);
-            }
-        }
     }
 
     /**

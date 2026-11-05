@@ -17,8 +17,8 @@
 
 package org.casbin.jcasbin.main;
 
-import com.googlecode.aviator.AviatorEvaluatorInstance;
 import org.casbin.jcasbin.rbac.RoleManager;
+import org.casbin.jcasbin.expression.ExpressionFunction;
 import org.casbin.jcasbin.util.BuiltInFunctions;
 import org.casbin.jcasbin.util.EnforceContext;
 import org.casbin.jcasbin.util.SyncedLRUCache;
@@ -280,8 +280,8 @@ public class TestUtil {
         assertEquals(res, BuiltInFunctions.keyGet3Func(key1, key2, pathVar));
     }
 
-    static void testEval(String eval, Map<String, Object> env, AviatorEvaluatorInstance aviatorEval, boolean res) {
-        assertEquals(res, BuiltInFunctions.eval(eval, env, aviatorEval));
+    static void testEval(String eval, Map<String, Object> env, Map<String, ExpressionFunction> functions, boolean res) {
+        assertEquals(res, BuiltInFunctions.eval(eval, env, functions));
     }
 
     static void testKeyMatch(String key1, String key2, boolean res) {

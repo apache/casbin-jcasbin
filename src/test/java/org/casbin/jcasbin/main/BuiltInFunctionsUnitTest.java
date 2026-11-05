@@ -17,8 +17,8 @@
 
 package org.casbin.jcasbin.main;
 
-import com.googlecode.aviator.AviatorEvaluator;
-import com.googlecode.aviator.AviatorEvaluatorInstance;
+import org.casbin.jcasbin.expression.ExpressionFunction;
+import org.casbin.jcasbin.model.FunctionMap;
 import org.casbin.jcasbin.util.BuiltInFunctions;
 import org.casbin.jcasbin.util.Util;
 import org.testng.annotations.Test;
@@ -291,11 +291,11 @@ public class BuiltInFunctionsUnitTest {
         testEval("r_sub.name == 'alice'", env, null, true);
         testEval("r_sub.name == 'bob'", env, null, false);
 
-        AviatorEvaluatorInstance aviatorEval = AviatorEvaluator.newInstance();
-        aviatorEval.addFunction(new FunctionTest.CustomFunc());
+        Map<String, ExpressionFunction> functions = FunctionMap.loadFunctionMap().fm;
+        functions.put("custom", new FunctionTest.CustomFunc());
         env.put("r_obj", "/test/url1/url2");
 
-        testEval("r_sub.age >= 18 && custom(r_obj)", env, aviatorEval, true);
+        testEval("r_sub.age >= 18 && custom(r_obj)", env, functions, true);
     }
 
     @Test
@@ -344,13 +344,12 @@ public class BuiltInFunctionsUnitTest {
     @Test
     public void should_logged_when_eval_given_errorExpression() {
         // given
-        AviatorEvaluatorInstance instance = AviatorEvaluator.getInstance();
         Map<String, Object> env = new HashMap<>();
 
         try (MockedStatic<Util> utilMocked = BDDMockito.mockStatic(Util.class)) {
             utilMocked.when(() -> Util.logPrintfWarn(anyString(), anyString())).thenCallRealMethod();
             // when
-            BuiltInFunctions.eval("error", env, instance);
+            BuiltInFunctions.eval("error(", env, null);
             // then
             utilMocked.verify(() -> Util.logPrintfWarn(eq("Execute 'eval' function error, nested exception is: {}"), any()));
         }

@@ -17,15 +17,13 @@
 
 package org.casbin.jcasbin.main;
 
-import com.googlecode.aviator.runtime.function.FunctionUtils;
-import com.googlecode.aviator.runtime.type.AviatorBoolean;
-import com.googlecode.aviator.runtime.type.AviatorObject;
 import org.casbin.jcasbin.model.Model;
 import org.casbin.jcasbin.persist.file_adapter.AdapterMock;
 import org.casbin.jcasbin.rbac.RoleManager;
 import org.casbin.jcasbin.util.BuiltInFunctions;
 import org.casbin.jcasbin.util.Util;
 import org.casbin.jcasbin.util.function.CustomFunction;
+import org.casbin.jcasbin.util.function.FunctionArgs;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -869,11 +867,11 @@ public class ModelUnitTest {
 
     public class customFunctionWrapper extends CustomFunction {
         @Override
-        public AviatorObject call(Map<String, Object> env, AviatorObject arg1, AviatorObject arg2) {
-            String key1 = FunctionUtils.getStringValue(arg1, env);
-            String key2 = FunctionUtils.getStringValue(arg2, env);
+        public Object call(Object... args) {
+            String key1 = FunctionArgs.getString(args, 0);
+            String key2 = FunctionArgs.getString(args, 1);
 
-            return AviatorBoolean.valueOf(customFunction(key1, key2));
+            return customFunction(key1, key2);
         }
 
         @Override

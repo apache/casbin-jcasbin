@@ -17,34 +17,20 @@
 
 package org.casbin.jcasbin.util.function;
 
-import com.googlecode.aviator.AviatorEvaluatorInstance;
-import com.googlecode.aviator.runtime.function.AbstractFunction;
-
-import java.util.Map;
+import org.casbin.jcasbin.expression.ExpressionFunction;
 
 /**
+ * CustomFunction is the base class of named functions added with addFunction().
+ * Implement call(Object... args); the arguments are already evaluated, and
+ * FunctionArgs helps to check and read them.
+ *
  * @author: shink
  */
-public abstract class CustomFunction extends AbstractFunction {
-
-    private AviatorEvaluatorInstance aviatorEval;
-
-    public String replaceTargets(String exp, Map<String, Object> env) {
-        //Replace the first dot, because it can't be recognized by the 'reg' below.
-        if (exp.startsWith( "r") || exp.startsWith( "p")) {
-            exp = exp.replaceFirst("\\.","_");
-        }
-        //match example: "&&r.","||r."，"=r."
-        String reg = "([| =)(&<>,+\\-*/!])((r|p)[0-9]*)\\.";
-        exp = exp.replaceAll(reg,"$1$2_");
-        return exp;
-    }
-
-    public AviatorEvaluatorInstance getAviatorEval() {
-        return aviatorEval;
-    }
-
-    public void setAviatorEval(AviatorEvaluatorInstance aviatorEval) {
-        this.aviatorEval = aviatorEval;
-    }
+public abstract class CustomFunction implements ExpressionFunction {
+    /**
+     * getName returns the name the function is called by in matchers.
+     *
+     * @return the function name.
+     */
+    public abstract String getName();
 }

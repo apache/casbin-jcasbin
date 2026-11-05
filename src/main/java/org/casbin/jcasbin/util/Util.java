@@ -38,8 +38,6 @@ public class Util {
     public static boolean enableLog = true;
     private static Pattern evalReg = Pattern.compile("\\beval\\(([^),]*)\\)");
 
-    private static final Pattern IN_SYNTAX_PATTERN = Pattern.compile("([^\\s]+?) +in +(\\([^)]*\\)|\\[[^\\]]*\\]|\\S+)");
-
     private static Pattern escapeAssertionRegex = Pattern.compile("\\b(r|p)[0-9]*\\.");
 
     private static Logger LOGGER = LoggerFactory.getLogger("org.casbin.jcasbin");
@@ -186,44 +184,6 @@ public class Util {
         }
 
         m.appendTail(sb);
-        return sb.toString();
-    }
-
-    /**
-     * convertInSyntax Convert 'in' to 'include' to fit aviatorscript,because
-     * aviatorscript don't support native 'in' syntax
-     *
-     * @param expString the value of the matcher
-     * @return the 'include' expression.
-     */
-    public static String convertInSyntax(String expString) {
-        if (expString.contains(" in ")) {
-            Matcher matcher = IN_SYNTAX_PATTERN.matcher(expString);
-            if (matcher.find()) {
-                return replaceInSyntaxWithInclude(matcher);
-            }
-        }
-
-        return expString;
-    }
-
-    private static String replaceInSyntaxWithInclude(Matcher matcher) {
-        StringBuffer sb = new StringBuffer();
-        do {
-            String leftOperand = matcher.group(1);
-            String rightOperand = matcher.group(2);
-            
-            // If right operand is a parenthesized expression with commas (tuple literal),
-            // convert to tuple() function. Otherwise, keep parentheses as-is for grouping.
-            if (rightOperand.startsWith("(") && rightOperand.endsWith(")") && rightOperand.contains(",")) {
-                rightOperand = "tuple" + rightOperand;
-            } else if (rightOperand.startsWith("[") && rightOperand.endsWith("]")) {
-                rightOperand = "tuple(" + rightOperand.substring(1, rightOperand.length() - 1) + ")";
-            }
-            
-            matcher.appendReplacement(sb, Matcher.quoteReplacement("include(" + rightOperand + ", " + leftOperand + ")"));
-        } while (matcher.find());
-        matcher.appendTail(sb);
         return sb.toString();
     }
 

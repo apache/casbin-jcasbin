@@ -17,13 +17,10 @@
 
 package org.casbin.jcasbin.main;
 
-import com.googlecode.aviator.runtime.function.FunctionUtils;
-import com.googlecode.aviator.runtime.type.AviatorBoolean;
-import com.googlecode.aviator.runtime.type.AviatorObject;
 import org.casbin.jcasbin.util.function.CustomFunction;
+import org.casbin.jcasbin.util.function.FunctionArgs;
 import org.testng.annotations.Test;
 
-import java.util.Map;
 import java.util.regex.Pattern;
 
 import static org.casbin.jcasbin.main.TestUtil.testEnforce;
@@ -45,10 +42,9 @@ public class FunctionTest {
 
     public static class CustomFunc extends CustomFunction {
         @Override
-        public AviatorObject call(Map<String, Object> env, AviatorObject arg1) {
-            String obj = FunctionUtils.getStringValue(arg1, env);
-            boolean res = Pattern.compile("/*/url1/url2/*", Pattern.CASE_INSENSITIVE).matcher(obj).find();
-            return AviatorBoolean.valueOf(res);
+        public Object call(Object... args) {
+            String obj = FunctionArgs.getString(args, 0);
+            return Pattern.compile("/*/url1/url2/*", Pattern.CASE_INSENSITIVE).matcher(obj).find();
         }
 
         @Override

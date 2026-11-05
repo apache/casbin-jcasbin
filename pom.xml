@@ -262,12 +262,6 @@ under the License.
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.github.aviatorscript</groupId>
-            <artifactId>aviator</artifactId>
-            <version>5.9.0</version>
-        </dependency>
-
-        <dependency>
             <groupId>com.github.seancfoley</groupId>
             <artifactId>ipaddress</artifactId>
             <version>5.5.1</version>

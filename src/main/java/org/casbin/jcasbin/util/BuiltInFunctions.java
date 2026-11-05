@@ -17,16 +17,15 @@
 
 package org.casbin.jcasbin.util;
 
-import com.googlecode.aviator.AviatorEvaluator;
-import com.googlecode.aviator.AviatorEvaluatorInstance;
-import com.googlecode.aviator.runtime.function.AbstractVariadicFunction;
-import com.googlecode.aviator.runtime.function.FunctionUtils;
-import com.googlecode.aviator.runtime.type.*;
 import inet.ipaddr.AddressStringException;
 import inet.ipaddr.IPAddress;
 import inet.ipaddr.IPAddressString;
+import org.casbin.jcasbin.expression.Expression;
+import org.casbin.jcasbin.expression.ExpressionFunction;
+import org.casbin.jcasbin.model.FunctionMap;
 import org.casbin.jcasbin.rbac.ConditionalRoleManager;
 import org.casbin.jcasbin.rbac.RoleManager;
+import org.casbin.jcasbin.util.function.FunctionArgs;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -41,6 +40,8 @@ public class BuiltInFunctions {
     private static final Pattern KEY_MATCH2_PATTERN = Pattern.compile(":[^/]+");
     private static final Pattern KEY_MATCH3_PATTERN = Pattern.compile("\\{[^/]+\\}");
     private static final Pattern KEY_MATCH5_PATTERN = Pattern.compile("\\{[^/]+\\}");
+    private static final int MAX_EVAL_EXPRESSIONS = 10000;
+    private static final Map<String, Expression> EVAL_EXPRESSIONS = new ConcurrentHashMap<>();
 
     /**
      * validate the variadic string parameter size
@@ -407,7 +408,7 @@ public class BuiltInFunctions {
          * @param rm   the role manager used by the function.
          * @return the function.
          */
-        public static AviatorFunction generateGFunction(String name, RoleManager rm) {
+        public static ExpressionFunction generateGFunction(String name, RoleManager rm) {
             return generateGFunction(name, rm, new ConcurrentHashMap<>());
         }
 
@@ -419,49 +420,34 @@ public class BuiltInFunctions {
          * @param memorizedMap the cache of g(_, _) results owned by the caller, key: name such as g, g2.
          * @return the function.
          */
-        public static AviatorFunction generateGFunction(String name, RoleManager rm, Map<String, Map<String, AviatorBoolean>> memorizedMap) {
+        public static ExpressionFunction generateGFunction(String name, RoleManager rm, Map<String, Map<String, Boolean>> memorizedMap) {
             memorizedMap.put(name, new ConcurrentHashMap<>());
 
-            return new AbstractVariadicFunction() {
-                @Override
-                public AviatorObject variadicCall(Map<String, Object> env, AviatorObject... args) {
-                    Map<String, AviatorBoolean> memorized = memorizedMap.get(name);
-                    int len = args.length;
-                    if (len < 2) {
-                        return AviatorBoolean.valueOf(false);
-                    }
-                    String name1 = FunctionUtils.getStringValue(args[0], env);
-                    String name2 = FunctionUtils.getStringValue(args[1], env);
+            return args -> {
+                Map<String, Boolean> memorized = memorizedMap.get(name);
+                int len = args.length;
+                if (len < 2) {
+                    return false;
+                }
+                String name1 = FunctionArgs.getString(args, 0);
+                String name2 = FunctionArgs.getString(args, 1);
 
-                    String key = "";
-                    for (AviatorObject arg : args) {
-                        String name = FunctionUtils.getStringValue(arg, env);
-                        key += ";" + name;
-                    }
-
-                    AviatorBoolean value = memorized.get(key);
-                    if (value != null) {
-                        return value;
-                    }
-
-                    if (rm == null) {
-                        value = AviatorBoolean.valueOf(name1.equals(name2));
-                    } else if (len == 2) {
-                        value = AviatorBoolean.valueOf(rm.hasLink(name1, name2));
-                    } else if (len >= 3) {
-                        String domain = FunctionUtils.getStringValue(args[2], env);
-                        value = AviatorBoolean.valueOf(rm.hasLink(name1, name2, domain));
-                    } else {
-                        value = AviatorBoolean.valueOf(false);
-                    }
-                    memorized.put(key, value);
+                String key = gFunctionCacheKey(args);
+                Boolean value = memorized.get(key);
+                if (value != null) {
                     return value;
                 }
 
-                @Override
-                public String getName() {
-                    return name;
+                if (rm == null) {
+                    value = name1.equals(name2);
+                } else if (len == 2) {
+                    value = rm.hasLink(name1, name2);
+                } else {
+                    String domain = FunctionArgs.getString(args, 2);
+                    value = rm.hasLink(name1, name2, domain);
                 }
+                memorized.put(key, value);
+                return value;
             };
         }
     }
@@ -474,7 +460,7 @@ public class BuiltInFunctions {
          * @param condRm  the conditional role manager used by the function.
          * @return the function.
          */
-        public static AviatorFunction generateConditionalGFunction(String name, ConditionalRoleManager condRm) {
+        public static ExpressionFunction generateConditionalGFunction(String name, ConditionalRoleManager condRm) {
             return generateConditionalGFunction(name, condRm, new ConcurrentHashMap<>());
         }
 
@@ -486,85 +472,74 @@ public class BuiltInFunctions {
          * @param memorizedMap the cache of g(_, _) results owned by the caller, key: name such as g, g2.
          * @return the function.
          */
-        public static AviatorFunction generateConditionalGFunction(String name, ConditionalRoleManager condRm, Map<String, Map<String, AviatorBoolean>> memorizedMap) {
+        public static ExpressionFunction generateConditionalGFunction(String name, ConditionalRoleManager condRm, Map<String, Map<String, Boolean>> memorizedMap) {
             memorizedMap.put(name, new ConcurrentHashMap<>());
 
-            return new AbstractVariadicFunction() {
-                @Override
-                public AviatorObject variadicCall(Map<String, Object> env, AviatorObject... args) {
-                    Map<String, AviatorBoolean> memorized = memorizedMap.get(name);
-                    int len = args.length;
-                    if (len < 2) {
-                        return AviatorBoolean.valueOf(false);
-                    }
-                    String name1 = FunctionUtils.getStringValue(args[0], env);
-                    String name2 = FunctionUtils.getStringValue(args[1], env);
+            return args -> {
+                Map<String, Boolean> memorized = memorizedMap.get(name);
+                int len = args.length;
+                if (len < 2) {
+                    return false;
+                }
+                String name1 = FunctionArgs.getString(args, 0);
+                String name2 = FunctionArgs.getString(args, 1);
 
-                    String key = "";
-                    for (AviatorObject arg : args) {
-                        String name = FunctionUtils.getStringValue(arg, env);
-                        key += ";" + name;
-                    }
-
-                    AviatorBoolean value = memorized.get(key);
-                    if (value != null) {
-                        return value;
-                    }
-
-                    boolean hasLink;
-                    if (condRm == null) {
-                        hasLink = name1.equals(name2);
-                    } else if (len == 2) {
-                        hasLink = condRm.hasLink(name1, name2);
-                    } else if (len >= 3) {
-                        String domain = FunctionUtils.getStringValue(args[2], env);
-                        hasLink = condRm.hasLink(name1, name2, domain);
-                    } else {
-                        hasLink = false;
-                    }
-                    value = AviatorBoolean.valueOf(hasLink);
-                    memorized.put(key, value);
+                String key = gFunctionCacheKey(args);
+                Boolean value = memorized.get(key);
+                if (value != null) {
                     return value;
                 }
 
-                @Override
-                public String getName() {
-                    return name;
+                if (condRm == null) {
+                    value = name1.equals(name2);
+                } else if (len == 2) {
+                    value = condRm.hasLink(name1, name2);
+                } else {
+                    String domain = FunctionArgs.getString(args, 2);
+                    value = condRm.hasLink(name1, name2, domain);
                 }
+                memorized.put(key, value);
+                return value;
             };
         }
+    }
+
+    private static String gFunctionCacheKey(Object[] args) {
+        StringBuilder key = new StringBuilder();
+        for (int i = 0; i < args.length; i++) {
+            key.append(';').append(FunctionArgs.getString(args, i));
+        }
+        return key.toString();
     }
 
     /**
      * eval calculates the stringified boolean expression and return its result.
      *
-     * @param eval        the stringified boolean expression.
-     * @param env         the key-value pair of the parameters in the expression.
-     * @param aviatorEval the AviatorEvaluatorInstance object which contains built-in functions and custom functions.
-     * @return the result of the eval.
+     * @param eval      the stringified boolean expression.
+     * @param env       the key-value pair of the parameters in the expression.
+     * @param functions the built-in functions and custom functions the expression can call,
+     *                  null means only the built-in functions.
+     * @return the result of the eval, false if the expression is invalid or fails.
      */
-    public static boolean eval(String eval, Map<String, Object> env, AviatorEvaluatorInstance aviatorEval) {
-        // Validate expression to block AviatorScript-specific features
-        // that break cross-platform compatibility
+    public static boolean eval(String eval, Map<String, Object> env, Map<String, ? extends ExpressionFunction> functions) {
+        if (functions == null) {
+            functions = FunctionMap.loadFunctionMap().fm;
+        }
         try {
-            ExpressionValidator.validateExpression(eval);
-        } catch (IllegalArgumentException e) {
-            Util.logPrintfWarn("Expression validation failed: {}", e.getMessage());
+            Expression expression = EVAL_EXPRESSIONS.get(eval);
+            if (expression == null) {
+                expression = Expression.compile(eval);
+                if (EVAL_EXPRESSIONS.size() >= MAX_EVAL_EXPRESSIONS) {
+                    EVAL_EXPRESSIONS.clear();
+                }
+                EVAL_EXPRESSIONS.put(eval, expression);
+            }
+            Object res = expression.evaluate(env, functions);
+            return res instanceof Boolean && (Boolean) res;
+        } catch (Exception e) {
+            Util.logPrintfWarn("Execute 'eval' function error, nested exception is: {}", e.getMessage());
             return false;
         }
-        
-        boolean res;
-        if (aviatorEval != null) {
-            try {
-                res = (boolean) aviatorEval.execute(eval, env);
-            } catch (Exception e) {
-                Util.logPrintfWarn("Execute 'eval' function error, nested exception is: {}", e.getMessage());
-                res = false;
-            }
-        } else {
-            res = (boolean) AviatorEvaluator.execute(eval, env);
-        }
-        return res;
     }
 
     // builtin LinkConditionFunc

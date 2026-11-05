@@ -17,29 +17,33 @@
 
 package org.casbin.jcasbin.util.function;
 
-import com.googlecode.aviator.runtime.function.FunctionUtils;
-import com.googlecode.aviator.runtime.type.AviatorBoolean;
-import com.googlecode.aviator.runtime.type.AviatorObject;
+import org.casbin.jcasbin.expression.EvaluationContext;
+import org.casbin.jcasbin.expression.ExpressionException;
+import org.casbin.jcasbin.expression.ExpressionFunction;
 import org.casbin.jcasbin.util.BuiltInFunctions;
-
-import java.util.Map;
+import org.casbin.jcasbin.util.Util;
 
 /**
  * EvalFunc is the wrapper for eval.
- * It extends CustomFunction, so it can be used in matcher and policy rule.
+ * It evaluates a rule stored in the policy, such as "r.sub.Age > 18",
+ * with the variables and functions of the current matcher.
  *
  * @author shink
  */
-public class EvalFunc extends CustomFunction {
+public class EvalFunc implements ExpressionFunction {
 
     @Override
-    public AviatorObject call(Map<String, Object> env, AviatorObject arg1) {
-        String eval = FunctionUtils.getStringValue(arg1, env);
-        eval = replaceTargets(eval, env);
-        return AviatorBoolean.valueOf(BuiltInFunctions.eval(eval, env, getAviatorEval()));
+    public Object call(Object... args) {
+        throw new ExpressionException("eval can only be called from a matcher");
     }
 
     @Override
+    public Object call(EvaluationContext context, Object... args) {
+        FunctionArgs.checkCount("eval", args, 1);
+        String eval = Util.escapeAssertion(FunctionArgs.getString(args, 0));
+        return BuiltInFunctions.eval(eval, context.getVariables(), context.getFunctions());
+    }
+
     public String getName() {
         return "eval";
     }

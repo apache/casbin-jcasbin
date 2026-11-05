@@ -18,9 +18,9 @@
 package org.casbin.jcasbin.main;
 
 import org.casbin.jcasbin.effect.Effect;
+import org.casbin.jcasbin.expression.ExpressionFunction;
 import org.casbin.jcasbin.model.Assertion;
 import org.casbin.jcasbin.util.Util;
-import org.casbin.jcasbin.util.function.CustomFunction;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -629,7 +629,6 @@ public class ManagementEnforcer extends InternalEnforcer {
     public boolean addNamedGroupingPolicy(String ptype, List<String> params) {
         boolean ruleAdded = addPolicy("g", ptype, params);
 
-        fm.setAviatorEval(null);
         return ruleAdded;
     }
 
@@ -784,7 +783,6 @@ public class ManagementEnforcer extends InternalEnforcer {
     public boolean removeNamedGroupingPolicy(String ptype, List<String> params) {
         boolean ruleRemoved = removePolicy("g", ptype, params);
 
-        fm.setAviatorEval(null);
         return ruleRemoved;
     }
 
@@ -833,7 +831,6 @@ public class ManagementEnforcer extends InternalEnforcer {
     public boolean removeFilteredNamedGroupingPolicy(String ptype, int fieldIndex, String... fieldValues) {
         boolean ruleRemoved = removeFilteredPolicy("g", ptype, fieldIndex, fieldValues);
 
-        fm.setAviatorEval(null);
         return ruleRemoved;
     }
 
@@ -843,10 +840,8 @@ public class ManagementEnforcer extends InternalEnforcer {
      * @param name the name of the function.
      * @param function the custom function.
      */
-    public void addFunction(String name, CustomFunction function) {
+    public void addFunction(String name, ExpressionFunction function) {
         fm.addFunction(name, function);
-
-        fm.setAviatorEval(null);
     }
 
     /**

@@ -59,32 +59,6 @@ public class UtilTest {
       assertEquals("r_obj == \"a\\\"p.b\" || p_obj == 'r.c'", Util.escapeAssertion("r.obj == \"a\\\"p.b\" || p.obj == 'r.c'"));
   }
 
-    @Test
-    public void testConvertInSyntax(){
-        // Basic cases
-        assertEquals("include(r_obj, r_sub)", Util.convertInSyntax("r_sub in r_obj"));
-        assertEquals("include(r_obj, r_sub.name)", Util.convertInSyntax("r_sub.name in r_obj"));
-        assertEquals("include(r_obj.name, r_sub.name)", Util.convertInSyntax("r_sub.name in r_obj.name"));
-        assertEquals("include(r_obj, r_sub) && r.obj == p.obj", Util.convertInSyntax("r_sub in r_obj && r.obj == p.obj"));
-        
-        // Tuple/array with single quotes - should convert to tuple() function
-        assertEquals("include(tuple('data2', 'data3'), r.obj)", Util.convertInSyntax("r.obj in ('data2', 'data3')"));
-        
-        // Tuple/array with double quotes - should convert to tuple() function
-        assertEquals("include(tuple(\"data2\", \"data3\"), r.obj)", Util.convertInSyntax("r.obj in (\"data2\", \"data3\")"));
-        
-        // Tuple/array without quotes - should convert to tuple() function
-        assertEquals("include(tuple(data2, data3), r.obj)", Util.convertInSyntax("r.obj in (data2, data3)"));
-        
-        // Complex expression with 'in' operator and tuple (the original issue scenario)
-        assertEquals("g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act || include(tuple('data2', 'data3'), r.obj)", 
-                     Util.convertInSyntax("g(r.sub, p.sub) && r.obj == p.obj && r.act == p.act || r.obj in ('data2', 'data3')"));
-        
-        // Multiple 'in' operators
-        assertEquals("include(r.obj.admins, r.sub.name) && include(r.obj.admins, (\"bob\"))", 
-                     Util.convertInSyntax("r.sub.name in r.obj.admins && (\"bob\") in r.obj.admins"));
-    }
-
   @Test
   public void testRemoveComments(){
     assertEquals("r.act == p.act", Util.removeComments("r.act == p.act # comments"));

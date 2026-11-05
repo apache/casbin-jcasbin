@@ -17,27 +17,22 @@
 
 package org.casbin.jcasbin.util.function;
 
-import com.googlecode.aviator.runtime.function.AbstractFunction;
-import com.googlecode.aviator.runtime.function.FunctionUtils;
-import com.googlecode.aviator.runtime.type.AviatorBoolean;
-import com.googlecode.aviator.runtime.type.AviatorObject;
+import org.casbin.jcasbin.expression.ExpressionFunction;
 import org.casbin.jcasbin.util.BuiltInFunctions;
-
-import java.util.Map;
 
 /**
  * IPMatchFunc is the wrapper for ipMatch.
  */
-public class IPMatchFunc extends AbstractFunction {
+public class IPMatchFunc implements ExpressionFunction {
     @Override
-    public AviatorObject call(Map<String, Object> env, AviatorObject arg1, AviatorObject arg2) {
-        String ip1 = FunctionUtils.getStringValue(arg1, env);
-        String ip2 = FunctionUtils.getStringValue(arg2, env);
+    public Object call(Object... args) {
+        FunctionArgs.checkCount("ipMatch", args, 2);
+        String ip1 = FunctionArgs.getString(args, 0);
+        String ip2 = FunctionArgs.getString(args, 1);
 
-        return AviatorBoolean.valueOf(BuiltInFunctions.ipMatch(ip1, ip2));
+        return BuiltInFunctions.ipMatch(ip1, ip2);
     }
 
-    @Override
     public String getName() {
         return "ipMatch";
     }

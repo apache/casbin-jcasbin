@@ -215,42 +215,44 @@ https://casbin.apache.org/docs/adapters
 
 https://casbin.apache.org/docs/role-managers
 
-## Expression Validation and Cross-Platform Compatibility
+## Matcher expressions
 
-Starting from version 1.98.1, jCasbin validates expressions to ensure cross-platform compatibility with other Casbin implementations (Go, Node.js, Python, .NET, etc.).
+jCasbin evaluates matchers and `eval()` rules with its own expression evaluator (`org.casbin.jcasbin.expression`). It has the same syntax and operator precedence as the Go implementation, so a model gives the same decisions in every Casbin implementation.
 
-### Restricted Syntax
-
-The following AviatorScript-specific features are **not allowed** in `eval()` expressions and policy rules:
-
-- **Namespace methods**: `seq.list()`, `string.startsWith()`, `string.endsWith()`, `math.sqrt()`, etc.
-- **Advanced control structures**: `lambda`, `let`, `fn`, `for`, `while`, `return`, `if-then-else`, `->`
-
-These features are restricted because they are specific to AviatorScript and would make policies incompatible with other Casbin implementations.
-
-### Allowed Syntax
-
-The following standard Casbin syntax is fully supported:
-
-- **Operators**: `&&`, `||`, `==`, `!=`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `/`, `!`, `in`
-- **Built-in functions**: `g()`, `keyMatch()`, `keyMatch2-5()`, `regexMatch()`, `ipMatch()`, `globMatch()`, `timeMatch()`, `eval()`
-- **Custom functions**: Users can still register custom functions using `enforcer.addFunction()`
-- **Variable access**: `r.attr`, `p.attr` (automatically escaped to `r_attr`, `p_attr`)
-
-### Example
+- **Literals**: `'text'` or `"text"`, numbers, `true`, `false`, `nil`
+- **Variables**: `r.sub`, `p.obj`, and attributes such as `r.sub.Age`. Attributes are read from map entries, getters (`getAge()`, `isAdmin()`), record accessors and public fields; no other methods are called.
+- **Arrays**: `('admin', 'editor')` or `['admin', 'editor']`, usually with `in`
+- **Operators**, from the lowest precedence: `? :` and `??`, `||`, `&&`, `== != < > <= >= =~ !~ in`, `|`, `^`, `&`, `<< >>`, `+ -`, `* / %`, `**`, unary `- ! ~`
+- **Built-in functions**: `g()`, `keyMatch()`, `keyMatch2()` to `keyMatch5()`, `keyGet()`, `keyGet2()`, `keyGet3()`, `regexMatch()`, `ipMatch()`, `globMatch()`, `eval()`
 
 ```java
-// ❌ NOT allowed - AviatorScript-specific syntax
-"eval(seq.list('admin', 'editor'))"
-"eval(string.startsWith(r.path, '/admin'))"
-
-// ✅ Allowed - Standard Casbin syntax
-"eval(r.age > 18 && r.age < 65)"
-"r.role in ('admin', 'editor')"  // Converted to include(tuple(...), ...)
 "g(r.sub, p.sub) && keyMatch(r.path, p.path)"
+"r.role in ('admin', 'editor')"
+"eval(p.sub_rule)"  // with a policy rule such as: r.sub.Age > 18 && r.sub.Age < 65
 ```
 
-If an expression contains restricted syntax, it will be logged as a warning and return `false`.
+Anything else, such as AviatorScript's `seq.list()`, `string.startsWith()` or `lambda`, is a syntax error. A matcher with a syntax error throws an `ExpressionException`; an `eval()` rule with one is logged as a warning and evaluates to `false`.
+
+### Custom functions
+
+A custom function receives the evaluated arguments (`String`, `Long`, `Double`, `Boolean`, `List`, or the objects passed to `enforce()`) and returns the result:
+
+```java
+enforcer.addFunction("isOwner", args -> args[0].equals(args[1]));
+
+enforcer.addFunction("isPublic", new CustomFunction() {
+    @Override
+    public Object call(Object... args) {
+        FunctionArgs.checkCount("isPublic", args, 1);
+        return FunctionArgs.getString(args, 0).startsWith("/public/");
+    }
+
+    @Override
+    public String getName() {
+        return "isPublic";
+    }
+});
+```
 
 ## Examples
 

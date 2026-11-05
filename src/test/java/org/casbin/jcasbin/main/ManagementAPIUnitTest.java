@@ -17,8 +17,6 @@
 
 package org.casbin.jcasbin.main;
 
-import com.googlecode.aviator.AviatorEvaluator;
-import com.googlecode.aviator.AviatorEvaluatorInstance;
 import org.casbin.jcasbin.util.Util;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -279,27 +277,6 @@ public class ManagementAPIUnitTest {
         testGetRoles(e, "alice", asList("data2_admin"));
         testGetRoles(e, "bob", asList("data1_admin"));
         testGetRoles(e, "eve", asList("data3_admin"));
-    }
-
-    @Test
-    public void should_throwsNullPointException_when_setAviatorEvaluator_given_nullInstance() {
-        // given
-        AviatorEvaluatorInstance instance = null;
-        Enforcer enforcer = new Enforcer();
-        // when
-        Assert.assertThrows(NullPointerException.class,
-            () -> enforcer.setAviatorEvaluator(instance));
-    }
-
-    @Test
-    public void should_true_when_setAviatorEvaluator_given_customInstance() {
-        // given
-        AviatorEvaluatorInstance instance = AviatorEvaluator.newInstance();
-        Enforcer enforcer = new Enforcer();
-        // when
-        enforcer.setAviatorEvaluator(instance);
-        // then
-        assertEquals(enforcer.getAviatorEval(), instance);
     }
 
     @Test
