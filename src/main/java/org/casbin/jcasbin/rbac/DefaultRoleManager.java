@@ -17,6 +17,7 @@
 
 package org.casbin.jcasbin.rbac;
 
+import org.casbin.jcasbin.detector.Detector;
 import org.casbin.jcasbin.util.SyncedLRUCache;
 import org.casbin.jcasbin.util.Util;
 
@@ -30,6 +31,17 @@ public class DefaultRoleManager implements RoleManager {
 
     BiPredicate<String, String> matchingFunc;
     private SyncedLRUCache<String, Boolean> matchingFuncCache;
+    private Detector detector;
+
+    /**
+     * Sets the checker used after adding role links. A null detector disables checking.
+     * Existing links are not checked until the next call to addLink.
+     *
+     * @param detector the optional role consistency checker
+     */
+    public void setDetector(Detector detector) {
+        this.detector = detector;
+    }
 
     /**
      * DefaultRoleManager is the constructor for creating an instance of the default RoleManager
@@ -163,7 +175,21 @@ public class DefaultRoleManager implements RoleManager {
     public void addLink(String name1, String name2, String... domain) {
         Role user = getRole(name1);
         Role role = getRole(name2);
+        boolean existingLink = user.roles.containsKey(name2);
         user.addRole(role);
+        if (detector != null) {
+            try {
+                String error = detector.check(this);
+                if (error != null && !error.isEmpty()) {
+                    throw new IllegalArgumentException(error);
+                }
+            } catch (RuntimeException ex) {
+                if (!existingLink) {
+                    user.removeRole(role);
+                }
+                throw ex;
+            }
+        }
     }
 
     /**
