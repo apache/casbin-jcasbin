@@ -24,15 +24,15 @@ import org.casbin.jcasbin.persist.cache.CacheableParam;
 import org.casbin.jcasbin.persist.cache.DefaultCache;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.Lock;
 
 public class SyncedCachedEnforcer extends SyncedEnforcer{
     private Duration expireTime;
     private Cache cache;
     private final AtomicBoolean enableCache = new AtomicBoolean(true);
+    private final Object cacheVersionLock = new Object();
+    private volatile long cacheVersion = -1;
 
     /**
      * Default constructor. Initializes a new SyncedCachedEnforcer with a default cache.
@@ -142,13 +142,15 @@ public class SyncedCachedEnforcer extends SyncedEnforcer{
 
     /**
      * Performs an enforcement check based on given parameters, using the cache.
+     * Cached decisions are dropped whenever the policy, the role links or the
+     * enforcer settings change, so a revoked permission is never served from the cache.
      *
      * @param rvals Parameters for the enforcement check.
      * @return The result of the enforcement check.
      */
     @Override
     public boolean enforce(Object... rvals) {
-        if (!enableCache.get()) {
+        if (!enableCache.get() || !isEnforceEnabled()) {
             return super.enforce(rvals);
         }
 
@@ -157,127 +159,36 @@ public class SyncedCachedEnforcer extends SyncedEnforcer{
             return super.enforce(rvals);
         }
 
-        Boolean cachedResult = getCachedResult(key);
-        if (cachedResult != null) {
-            return cachedResult;
-        }
-
-        boolean result = super.enforce(rvals);
-        setCachedResult(key, result, expireTime);
-        return result;
-    }
-
-    /**
-     * Loads the policy, clearing the cache if enabled.
-     */
-    @Override
-    public void loadPolicy() {
-        if(enableCache == null || !enableCache.get()){
-            super.loadPolicy();
-        } else {
-            if (enableCache.get()) {
-                cache.clear();
-            }
-            super.loadPolicy();
-        }
-    }
-
-    /**
-     * Adds a single policy while checking and removing the cache.
-     *
-     * @param params Policy parameters.
-     * @return Whether the addition was successful.
-     */
-    @Override
-    public boolean addPolicy(String... params) {
-        if (!checkOneAndRemoveCache(params)) {
-            return false;
-        }
-        return super.addPolicy(params);
-    }
-
-    /**
-     * Adds multiple policies while checking and removing the cache.
-     *
-     * @param rules Policy rules.
-     * @return Whether the addition was successful.
-     */
-    @Override
-    public boolean addPolicies(List<List<String>> rules) {
-        if (!checkManyAndRemoveCache(rules)) {
-            return false;
-        }
-        return super.addPolicies(rules);
-    }
-
-    /**
-     * Adds multiple policies while checking and removing the cache.
-     *
-     * @param rules Policy rules.
-     * @return Whether the addition was successful.
-     */
-    @Override
-    public boolean addPolicies(String[][] rules) {
-        if (!checkManyAndRemoveCache(rules)) {
-            return false;
-        }
-        return super.addPolicies(rules);
-    }
-
-    /**
-     * Removes a single policy while checking and removing the cache.
-     *
-     * @param params Policy parameters.
-     * @return Whether the removal was successful.
-     */
-    @Override
-    public boolean removePolicy(String... params) {
-        if (!checkOneAndRemoveCache(params)) {
-            return false;
-        }
-        return super.removePolicy(params);
-    }
-
-    /**
-     * Removes multiple policies while checking and removing the cache.
-     *
-     * @param rules Policy rules.
-     * @return Whether the removal was successful.
-     */
-    @Override
-    public boolean removePolicies(List<List<String>>rules) {
-        if (!checkManyAndRemoveCache(rules)) {
-            return false;
-        }
-        return super.removePolicies(rules);
-    }
-
-    /**
-     * Removes multiple policies while checking and removing the cache.
-     *
-     * @param rules Policy rules.
-     * @return Whether the removal was successful.
-     */
-    @Override
-    public boolean removePolicies(String[][] rules) {
-        if (!checkManyAndRemoveCache(rules)) {
-            return false;
-        }
-        return super.removePolicies(rules);
-    }
-
-    /**
-     * Retrieves a cached result based on the given key.
-     *
-     * @param key The cache key.
-     * @return The cached result.
-     */
-    private Boolean getCachedResult(String key) {
+        Lock lock = getReadWriteLock().readLock();
+        lock.lock();
         try {
-            getReadWriteLock().readLock().lock();
-            return cache.get(key);
+            long version = getPolicyVersion();
+            syncCacheVersion(version);
+
+            Boolean cachedResult = cache.get(key);
+            if (cachedResult != null) {
+                return cachedResult;
+            }
+
+            boolean result = super.enforce(rvals);
+            if (getPolicyVersion() == version) {
+                cache.set(key, result, expireTime);
+            }
+            return result;
         } finally {
-            getReadWriteLock().readLock().unlock();
+            lock.unlock();
+        }
+    }
+
+    private void syncCacheVersion(long version) {
+        if (cacheVersion == version) {
+            return;
+        }
+        synchronized (cacheVersionLock) {
+            if (cacheVersion != version) {
+                cache.clear();
+                cacheVersion = version;
+            }
         }
     }
 
@@ -304,20 +215,10 @@ public class SyncedCachedEnforcer extends SyncedEnforcer{
         getReadWriteLock().writeLock().lock();
         try {
             this.cache = cache;
+            bumpPolicyVersion();
         } finally {
             getReadWriteLock().writeLock().unlock();
         }
-    }
-
-    /**
-     * Sets the cached result.
-     *
-     * @param key    The cache key.
-     * @param result The enforcement check result.
-     * @param extra  Additional parameters.
-     */
-    private void setCachedResult(String key, boolean result, Object... extra) {
-        cache.set(key, result, extra);
     }
 
     /**
@@ -348,65 +249,20 @@ public class SyncedCachedEnforcer extends SyncedEnforcer{
      * @return The generated key.
      */
     private String getKey(Object... params) {
-        return getCacheKey(params);
+        String key = getCacheKey(params);
+        return key.isEmpty() && params.length > 0 ? null : key;
     }
 
     /**
      * Invalidates the cache by clearing it.
      */
     public void invalidateCache() {
-        cache.clear();
-    }
-
-    /**
-     * Checks and removes cache for a single policy.
-     *
-     * @param params Policy parameters.
-     * @return Whether the check was successful.
-     */
-    private boolean checkOneAndRemoveCache(String... params) {
-        if (enableCache.get()) {
-            String key = getKey((Object []) params);
-            if (key != null) {
-                cache.delete(key);
-            }
+        getReadWriteLock().writeLock().lock();
+        try {
+            bumpPolicyVersion();
+            cache.clear();
+        } finally {
+            getReadWriteLock().writeLock().unlock();
         }
-        return true;
-    }
-
-    /**
-     * Checks and removes cache for multiple policies.
-     *
-     * @param rules Policy rules.
-     * @return Whether the check was successful.
-     */
-    private boolean checkManyAndRemoveCache(List<List<String>> rules) {
-        if (!rules.isEmpty() && enableCache.get()) {
-            for (List<String> rule : rules) {
-                String key = getKey(rule.toArray());
-                if (key != null) {
-                    cache.delete(key);
-                }
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Checks and removes cache for multiple policies.
-     *
-     * @param rules Policy rules.
-     * @return Whether the check was successful.
-     */
-    private boolean checkManyAndRemoveCache(String[][] rules) {
-        if (rules != null && enableCache.get()) {
-            for (String[] rule : rules) {
-                String key = getKey((Object[]) rule);
-                if (key != null) {
-                    cache.delete(key);
-                }
-            }
-        }
-        return true;
     }
 }

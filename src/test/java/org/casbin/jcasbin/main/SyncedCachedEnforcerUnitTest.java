@@ -17,13 +17,18 @@
 
 package org.casbin.jcasbin.main;
 
+import org.casbin.jcasbin.util.Util;
 import org.testng.annotations.Test;
 
 import java.time.Duration;
+import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.LockSupport;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 
 public class SyncedCachedEnforcerUnitTest {
 
@@ -84,5 +89,75 @@ public class SyncedCachedEnforcerUnitTest {
         testSyncEnforceCache(syncedCachedEnforcer, "bob", "data2", "write", false);
         testSyncEnforceCache(syncedCachedEnforcer, "alice", "data2", "read", true);
         testSyncEnforceCache(syncedCachedEnforcer, "alice", "data2", "write", true);
+    }
+
+    private static final String BASIC_MODEL = "[request_definition]\n" +
+        "r = sub, obj, act\n" +
+        "[policy_definition]\n" +
+        "p = sub, obj, act\n" +
+        "[policy_effect]\n" +
+        "e = some(where (p.eft == allow))\n" +
+        "[matchers]\n" +
+        "m = r.sub == p.sub && r.obj == p.obj && r.act == p.act\n";
+
+    @Test
+    public void testRevokeDuringConcurrentEnforce() throws Exception {
+        boolean enableLog = Util.enableLog;
+        Util.enableLog = false;
+        Random random = new Random(42);
+        int stale = 0;
+        try {
+            for (int i = 0; i < 200; i++) {
+                SyncedCachedEnforcer e = new SyncedCachedEnforcer(CoreEnforcer.newModel(BASIC_MODEL));
+                e.addPolicy("alice", "data1", "read");
+                e.enforce("alice", "data1", "read");
+
+                AtomicBoolean running = new AtomicBoolean(true);
+                Thread load = new Thread(() -> {
+                    while (running.get()) {
+                        e.enforce("alice", "data1", "read");
+                    }
+                });
+                load.start();
+                LockSupport.parkNanos(random.nextInt(60_000));
+                e.removePolicy("alice", "data1", "read");
+                LockSupport.parkNanos(50_000);
+                running.set(false);
+                load.join();
+
+                if (e.enforce("alice", "data1", "read")) {
+                    stale++;
+                }
+            }
+        } finally {
+            Util.enableLog = enableLog;
+        }
+        assertEquals(stale, 0, "revoked permission was still served from the cache");
+    }
+
+    @Test
+    public void testRoleRevocationInvalidatesCache() {
+        SyncedCachedEnforcer e = new SyncedCachedEnforcer("examples/rbac_model.conf", "examples/rbac_policy.csv");
+        testSyncEnforceCache(e, "alice", "data2", "read", true);
+
+        e.removeGroupingPolicy("alice", "data2_admin");
+        testSyncEnforceCache(e, "alice", "data2", "read", false);
+
+        e.addGroupingPolicy("alice", "data2_admin");
+        testSyncEnforceCache(e, "alice", "data2", "read", true);
+
+        e.removePolicy("data2_admin", "data2", "read");
+        testSyncEnforceCache(e, "alice", "data2", "read", false);
+    }
+
+    @Test
+    public void testUncacheableRequestsAreNotShared() {
+        SyncedCachedEnforcer e = new SyncedCachedEnforcer("examples/abac_model.conf");
+        ModelUnitTest.TestResource data1 = new ModelUnitTest.TestResource("data1", "alice");
+        ModelUnitTest.TestResource data2 = new ModelUnitTest.TestResource("data2", "bob");
+
+        testSyncEnforceCache(e, "alice", data1, "read", true);
+        testSyncEnforceCache(e, "alice", data2, "read", false);
+        assertFalse(e.enforce("bob", data1, "write"));
     }
 }

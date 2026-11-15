@@ -842,6 +842,7 @@ public class ManagementEnforcer extends InternalEnforcer {
      */
     public void addFunction(String name, ExpressionFunction function) {
         fm.addFunction(name, function);
+        bumpPolicyVersion();
     }
 
     /**

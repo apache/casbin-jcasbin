@@ -154,6 +154,7 @@ public class DistributedEnforcer extends SyncedEnforcer {
         }
 
         this.model.addPolicies(sec, ptype, noExistsPolicy);
+        bumpPolicyVersion();
 
         if (sec.equals("g")) {
             try {
@@ -192,6 +193,7 @@ public class DistributedEnforcer extends SyncedEnforcer {
         }
 
         this.model.removePolicies(sec, ptype, rules);
+        bumpPolicyVersion();
 
         if (sec.equals("g")) {
             try {
@@ -230,6 +232,7 @@ public class DistributedEnforcer extends SyncedEnforcer {
         }
 
         List<List<String>> effects = this.model.removeFilteredPolicyReturnsEffects(sec, ptype, fieldIndex, fieldValues);
+        bumpPolicyVersion();
 
         if (sec.equals("g")) {
             try {
@@ -259,6 +262,7 @@ public class DistributedEnforcer extends SyncedEnforcer {
             }
         }
         this.model.clearPolicy();
+        bumpPolicyVersion();
     }
 
     /**
@@ -288,6 +292,7 @@ public class DistributedEnforcer extends SyncedEnforcer {
         if (!ruleUpdated) {
             return false;
         }
+        bumpPolicyVersion();
         List<List<String>> rules = new ArrayList<>();
         if (sec.equals("g")) {
             try {

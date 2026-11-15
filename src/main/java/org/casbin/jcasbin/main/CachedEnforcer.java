@@ -24,7 +24,6 @@ import org.casbin.jcasbin.persist.cache.CacheableParam;
 import org.casbin.jcasbin.persist.cache.DefaultCache;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -35,6 +34,7 @@ public class CachedEnforcer extends Enforcer{
     private Cache cache;
     private final AtomicBoolean enableCache = new AtomicBoolean(true);
     private final static ReadWriteLock READ_WRITE_LOCK = new ReentrantReadWriteLock();
+    private volatile long cacheVersion = -1;
 
     /**
      * Default constructor for CachedEnforcer.
@@ -145,13 +145,15 @@ public class CachedEnforcer extends Enforcer{
 
     /**
      * Enforces a policy based on the given request values.
+     * Cached decisions are dropped whenever the policy, the role links or the
+     * enforcer settings change.
      *
      * @param rvals The request values, usually in the format of (sub, obj, act).
      * @return The result of the enforcement (true or false).
      */
     @Override
     public boolean enforce(Object... rvals) {
-        if (!enableCache.get()) {
+        if (!enableCache.get() || !isEnforceEnabled()) {
             return super.enforce(rvals);
         }
 
@@ -160,82 +162,34 @@ public class CachedEnforcer extends Enforcer{
             return super.enforce(rvals);
         }
 
+        long version = getPolicyVersion();
+        syncCacheVersion(version);
+
         Boolean cachedResult = getCachedResult(key);
         if (cachedResult != null) {
             return cachedResult;
         }
 
         boolean result = super.enforce(rvals);
-        setCachedResult(key, result, expireTime);
+        if (getPolicyVersion() == version) {
+            setCachedResult(key, result, expireTime);
+        }
         return result;
     }
 
-
-    /**
-     * Loads policies into the enforcer.
-     * If caching is enabled, clears the cache before loading policies.
-     */
-    @Override
-    public void loadPolicy() {
-        if(enableCache == null || !enableCache.get()){
-            super.loadPolicy();
-        } else {
-            if (enableCache.get()) {
+    private void syncCacheVersion(long version) {
+        if (cacheVersion == version) {
+            return;
+        }
+        READ_WRITE_LOCK.writeLock().lock();
+        try {
+            if (cacheVersion != version) {
                 cache.clear();
+                cacheVersion = version;
             }
-            super.loadPolicy();
+        } finally {
+            READ_WRITE_LOCK.writeLock().unlock();
         }
-    }
-
-    /**
-     * Removes a policy from the enforcer.
-     *
-     * @param params The parameters of the policy to be removed.
-     * @return True if the policy was removed, false otherwise.
-     */
-    @Override
-    public boolean removePolicy(String... params){
-        if (enableCache.get()) {
-            String key = getKey((Object[]) params);
-            if (key != null) {
-                cache.delete(key);
-            }
-        }
-        return super.removePolicy(params);
-    }
-
-    /**
-     * Removes multiple policies from the enforcer.
-     *
-     * @param rules The list of policies to be removed.
-     * @return True if the policies were removed, false otherwise.
-     */
-    @Override
-    public boolean removePolicies(List<List<String>> rules) {
-        if (!rules.isEmpty() && enableCache.get()) {
-            for (List<String> rule : rules) {
-                String key = getKey(rule.toArray());
-                cache.delete(key);
-            }
-        }
-        return super.removePolicies(rules);
-    }
-
-    /**
-     * Removes multiple policies from the enforcer.
-     *
-     * @param rules The list of policies to be removed.
-     * @return True if the policies were removed, false otherwise.
-     */
-    @Override
-    public boolean removePolicies(String[][] rules) {
-        if (rules != null && enableCache.get()) {
-            for (String[] rule : rules) {
-                String key = getKey((Object[]) rule);
-                cache.delete(key);
-            }
-        }
-        return super.removePolicies(rules);
     }
 
     /**
@@ -269,6 +223,7 @@ public class CachedEnforcer extends Enforcer{
      */
     public void setCache(Cache cache) {
         this.cache = cache;
+        bumpPolicyVersion();
     }
 
     /**
@@ -338,25 +293,10 @@ public class CachedEnforcer extends Enforcer{
     public void invalidateCache() {
         READ_WRITE_LOCK.writeLock().lock();
         try {
+            bumpPolicyVersion();
             cache.clear();
         } finally {
             READ_WRITE_LOCK.writeLock().unlock();
         }
-    }
-
-    /**
-     * Clears all policies from the enforcer.
-     * If caching is enabled, clears the cache before clearing policies.
-     */
-    @Override
-    public void clearPolicy() {
-        if (enableCache.get()) {
-            try {
-                cache.clear();
-            } catch (Exception e) {
-                // Handle the error
-            }
-        }
-        super.clearPolicy();
     }
 }

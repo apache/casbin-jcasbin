@@ -20,14 +20,14 @@ package org.casbin.jcasbin.persist.cache;
 import org.casbin.jcasbin.exception.CasbinCacheException;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DefaultCache implements Cache {
     private final Map<String, CacheItem> cache;
 
     public DefaultCache() {
-        this.cache = new HashMap<>();
+        this.cache = new ConcurrentHashMap<>();
     }
 
     /**
@@ -88,7 +88,7 @@ public class DefaultCache implements Cache {
             return null;
         }
         if (item.isExpired()) {
-            cache.remove(key);
+            cache.remove(key, item);
             return null;
         }
         return item.getValue();

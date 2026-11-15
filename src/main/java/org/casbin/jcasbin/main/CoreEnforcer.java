@@ -41,6 +41,7 @@ import org.casbin.jcasbin.util.Util;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -76,6 +77,19 @@ public class CoreEnforcer {
     private static final int MAX_CACHED_EXPRESSIONS = 1000;
     private final Map<String, Expression> expressionCache = new ConcurrentHashMap<>();
     private final Map<String, Map<String, Boolean>> gFunctionCache = new ConcurrentHashMap<>();
+    private final AtomicLong policyVersion = new AtomicLong();
+
+    long getPolicyVersion() {
+        return policyVersion.get();
+    }
+
+    void bumpPolicyVersion() {
+        policyVersion.incrementAndGet();
+    }
+
+    boolean isEnforceEnabled() {
+        return enabled;
+    }
 
     void initialize() {
         rmMap = new HashMap<>();
@@ -88,6 +102,7 @@ public class CoreEnforcer {
         autoBuildRoleLinks = true;
         dispatcher = null;
         initRmMap();
+        bumpPolicyVersion();
     }
 
     /**
@@ -144,6 +159,7 @@ public class CoreEnforcer {
         model.loadModel(this.modelPath);
         model.printModel();
         fm = FunctionMap.loadFunctionMap();
+        bumpPolicyVersion();
     }
 
     /**
@@ -163,6 +179,7 @@ public class CoreEnforcer {
     public void setModel(Model model) {
         this.model = model;
         fm = FunctionMap.loadFunctionMap();
+        bumpPolicyVersion();
     }
 
     /**
@@ -256,6 +273,7 @@ public class CoreEnforcer {
      */
     public void setEffector(Effector eft) {
         this.eft = eft;
+        bumpPolicyVersion();
     }
 
     /**
@@ -263,6 +281,7 @@ public class CoreEnforcer {
      */
     public void clearPolicy() {
         model.clearPolicy();
+        bumpPolicyVersion();
     }
 
     /**
@@ -280,6 +299,7 @@ public class CoreEnforcer {
             buildRoleLinks();
             buildConditionalRoleLinks();
         }
+        bumpPolicyVersion();
     }
 
     /**
@@ -309,6 +329,7 @@ public class CoreEnforcer {
             buildRoleLinks();
             buildConditionalRoleLinks();
         }
+        bumpPolicyVersion();
     }
 
     /**
@@ -350,6 +371,7 @@ public class CoreEnforcer {
      */
     public void setRoleManager(String ptype, RoleManager rm) {
         rmMap.put(ptype, rm);
+        bumpPolicyVersion();
     }
 
     /**
@@ -467,6 +489,7 @@ public class CoreEnforcer {
      */
     public void enableEnforce(boolean enable) {
         this.enabled = enable;
+        bumpPolicyVersion();
     }
 
     /**
@@ -518,6 +541,7 @@ public class CoreEnforcer {
             }
             model.buildRoleLinks(rmMap);
         }
+        bumpPolicyVersion();
     }
 
     public void buildConditionalRoleLinks(){
@@ -527,6 +551,7 @@ public class CoreEnforcer {
             }
             model.buildConditionalRoleLinks(condRmMap);
         }
+        bumpPolicyVersion();
     }
 
     /**
@@ -795,6 +820,7 @@ public class CoreEnforcer {
         } else {
             return false;
         }
+        bumpPolicyVersion();
         return true;
     }
 
@@ -819,6 +845,7 @@ public class CoreEnforcer {
 //            if (autoBuildRoleLinks) {
 //                buildRoleLinks();
 //            }
+        bumpPolicyVersion();
         return true;
     }
 
@@ -836,6 +863,7 @@ public class CoreEnforcer {
         if (condRmMap.containsKey(ptype)){
             ConditionalRoleManager condRm = condRmMap.get(ptype);
             condRm.addLinkConditionFunc(user, role, fn);
+            bumpPolicyVersion();
             return true;
         }
         return false;
@@ -856,6 +884,7 @@ public class CoreEnforcer {
         if (condRmMap.containsKey(ptype)){
             ConditionalRoleManager condRm = condRmMap.get(ptype);
             condRm.addDomainLinkConditionFunc(user, role, domain, fn);
+            bumpPolicyVersion();
             return true;
         }
         return false;
@@ -874,6 +903,7 @@ public class CoreEnforcer {
         if (condRmMap.containsKey(ptype)){
             ConditionalRoleManager condRm = condRmMap.get(ptype);
             condRm.setLinkConditionFuncParams(user, role, params);
+            bumpPolicyVersion();
             return true;
         }
         return false;
@@ -894,6 +924,7 @@ public class CoreEnforcer {
         if (condRmMap.containsKey(ptype)){
             ConditionalRoleManager condRm = condRmMap.get(ptype);
             condRm.setDomainLinkConditionFuncParams(user, role, domain, params);
+            bumpPolicyVersion();
             return true;
         }
         return false;

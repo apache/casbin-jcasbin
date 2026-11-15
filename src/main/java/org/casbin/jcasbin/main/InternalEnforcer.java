@@ -99,6 +99,7 @@ class InternalEnforcer extends CoreEnforcer {
         model.addPolicy(sec, ptype, rule);
 
         buildIncrementalRoleLinks(sec, ptype, singletonList(rule), Model.PolicyOperations.POLICY_ADD);
+        bumpPolicyVersion();
 
         return notifyWatcher(sec, ptype, singletonList(rule), WatcherEx.UpdateType.UpdateForAddPolicy);
     }
@@ -112,6 +113,7 @@ class InternalEnforcer extends CoreEnforcer {
             for (List<String> rule : rules) {
                 if(model.hasPolicy(sec, ptype, rule)) {
                     model.removePolicy(sec, ptype, rule);
+                    bumpPolicyVersion();
                 }
             }
         }
@@ -141,6 +143,7 @@ class InternalEnforcer extends CoreEnforcer {
         model.addPolicies(sec, ptype, rules);
 
         buildIncrementalRoleLinks(sec, ptype, rules, Model.PolicyOperations.POLICY_ADD);
+        bumpPolicyVersion();
 
         return notifyWatcher(sec, ptype, rules, WatcherEx.UpdateType.UpdateForAddPolicies);
     }
@@ -153,6 +156,7 @@ class InternalEnforcer extends CoreEnforcer {
      */
     public void buildIncrementalRoleLinks(Model.PolicyOperations op, String ptype, List<List<String>> rules) {
         model.buildIncrementalRoleLinks(rmMap, op, "g", ptype, rules);
+        bumpPolicyVersion();
     }
 
     /**
@@ -182,6 +186,7 @@ class InternalEnforcer extends CoreEnforcer {
         }
 
         buildIncrementalRoleLinks(sec, ptype, singletonList(rule), Model.PolicyOperations.POLICY_REMOVE);
+        bumpPolicyVersion();
 
         return notifyWatcher(sec, ptype, singletonList(rule), WatcherEx.UpdateType.UpdateForRemovePolicy);
     }
@@ -219,6 +224,7 @@ class InternalEnforcer extends CoreEnforcer {
         if (!ruleUpdated) {
             return false;
         }
+        bumpPolicyVersion();
 
         if ("g".equals(sec)) {
             try {
@@ -241,6 +247,7 @@ class InternalEnforcer extends CoreEnforcer {
                 return false;
             }
         }
+        bumpPolicyVersion();
 
         if (watcher != null && autoNotifyWatcher) {
             try {
@@ -291,6 +298,7 @@ class InternalEnforcer extends CoreEnforcer {
         }
 
         buildIncrementalRoleLinks(sec, ptype, rules, Model.PolicyOperations.POLICY_REMOVE);
+        bumpPolicyVersion();
 
         return notifyWatcher(sec, ptype, rules, WatcherEx.UpdateType.UpdateForRemovePolicies);
     }
@@ -328,6 +336,7 @@ class InternalEnforcer extends CoreEnforcer {
         }
 
         buildIncrementalRoleLinks(sec, ptype, effects, Model.PolicyOperations.POLICY_REMOVE);
+        bumpPolicyVersion();
 
         if (watcher != null && autoNotifyWatcher) {
             // error intentionally ignored
