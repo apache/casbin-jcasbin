@@ -102,6 +102,11 @@ public class EvalCacheEvictionTest {
         assertNotNull(second, "the recompiled expression must still be usable");
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testRejectsNonPositiveCapacity() {
+        new LruExpressionCache(0);
+    }
+
     @Test
     public void testLruRespectsCapacityWithSingleEntryCache() {
         LruExpressionCache cache = new LruExpressionCache(1);
