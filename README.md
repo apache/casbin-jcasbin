@@ -154,9 +154,10 @@ JCasbin 1.101.0 switches matcher evaluation from Aviator to JCasbin's built-in e
 
 | Existing integration | What to change |
 | --- | --- |
-| `addFunction(name, AviatorFunction)` | Keep the function name used in the matcher. Port the implementation to `org.casbin.jcasbin.expression.ExpressionFunction` and register it with the same `addFunction` entry point. |
+| `Enforcer.addFunction(name, CustomFunction)` or `FunctionMap.addFunction(name, AviatorFunction)` | Keep the function name used in the matcher. Port the implementation to `org.casbin.jcasbin.expression.ExpressionFunction` and register it with the corresponding `addFunction` method. Code that accesses `FunctionMap.fm` directly now uses `ExpressionFunction` values. |
 | A subclass of JCasbin's `CustomFunction` | Keep `getName()` and implement `Object call(Object... args)`. Arguments are evaluated Java values. Return a Java value such as `boolean` or `String`, replacing Aviator argument and result wrappers. `FunctionArgs` provides argument checks and readers. |
-| `setAviatorEvaluator`, `getAviatorEval`, or `setAviatorEval` | Review each call for its purpose. Register application-specific matcher functions with `addFunction`. Calls that configure or invoke Aviator directly require an application migration. These methods have no drop-in equivalent in the new evaluator. |
+| Aviator evaluator getters or setters on the enforcer, `FunctionMap`, or `CustomFunction` | Register application-specific matcher functions with `addFunction`. For direct expression evaluation, migrate to `Expression.compile(matcher).evaluate(variables, functions)` with Java values and the new function type. Aviator-specific configuration requires an application change. |
+| `ExpressionValidator.validateExpression(matcher)` | Use `Expression.compile(matcher)` to check syntax with the new parser and handle `ExpressionException`. Review additional validation rules used by your application. |
 
 For example, a matcher that already calls `isPublic(r.obj)` can keep that name and register the migrated function:
 
