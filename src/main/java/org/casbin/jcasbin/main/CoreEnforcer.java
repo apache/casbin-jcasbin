@@ -37,6 +37,8 @@ import org.casbin.jcasbin.persist.file_adapter.FileAdapter;
 import org.casbin.jcasbin.rbac.*;
 import org.casbin.jcasbin.util.BuiltInFunctions;
 import org.casbin.jcasbin.util.EnforceContext;
+import org.casbin.jcasbin.util.ExpressionCache;
+import org.casbin.jcasbin.util.LruExpressionCache;
 import org.casbin.jcasbin.util.Util;
 
 import java.util.*;
@@ -74,8 +76,9 @@ public class CoreEnforcer {
     boolean autoNotifyDispatcher = true;
     boolean acceptJsonRequest = false;
 
-    private static final int MAX_CACHED_EXPRESSIONS = 1000;
-    private final Map<String, Expression> expressionCache = new ConcurrentHashMap<>();
+    // Package-visible for the same-package wiring test.
+    static final int MAX_CACHED_EXPRESSIONS = 1000;
+    final ExpressionCache expressionCache = new LruExpressionCache(MAX_CACHED_EXPRESSIONS);
     private final Map<String, Map<String, Boolean>> gFunctionCache = new ConcurrentHashMap<>();
     private final AtomicLong policyVersion = new AtomicLong();
 
@@ -997,15 +1000,7 @@ public class CoreEnforcer {
     }
 
     private Expression compileMatcher(String expString) {
-        Expression expression = expressionCache.get(expString);
-        if (expression == null) {
-            expression = Expression.compile(expString);
-            if (expressionCache.size() >= MAX_CACHED_EXPRESSIONS) {
-                expressionCache.clear();
-            }
-            expressionCache.put(expString, expression);
-        }
-        return expression;
+        return expressionCache.get(expString, Expression::compile);
     }
 
     public boolean isAutoNotifyWatcher() {

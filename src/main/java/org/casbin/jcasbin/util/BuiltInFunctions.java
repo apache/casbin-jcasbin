@@ -40,8 +40,9 @@ public class BuiltInFunctions {
     private static final Pattern KEY_MATCH2_PATTERN = Pattern.compile(":[^/]+");
     private static final Pattern KEY_MATCH3_PATTERN = Pattern.compile("\\{[^/]+\\}");
     private static final Pattern KEY_MATCH5_PATTERN = Pattern.compile("\\{[^/]+\\}");
-    private static final int MAX_EVAL_EXPRESSIONS = 10000;
-    private static final Map<String, Expression> EVAL_EXPRESSIONS = new ConcurrentHashMap<>();
+    // Package-visible so the eviction A/B test always runs at the production capacity.
+    static final int MAX_EVAL_EXPRESSIONS = 10000;
+    private static final ExpressionCache EVAL_EXPRESSIONS = new LruExpressionCache(MAX_EVAL_EXPRESSIONS);
 
     /**
      * validate the variadic string parameter size
@@ -526,15 +527,7 @@ public class BuiltInFunctions {
             functions = FunctionMap.loadFunctionMap().fm;
         }
         try {
-            Expression expression = EVAL_EXPRESSIONS.get(eval);
-            if (expression == null) {
-                expression = Expression.compile(eval);
-                if (EVAL_EXPRESSIONS.size() >= MAX_EVAL_EXPRESSIONS) {
-                    EVAL_EXPRESSIONS.clear();
-                }
-                EVAL_EXPRESSIONS.put(eval, expression);
-            }
-            Object res = expression.evaluate(env, functions);
+            Object res = EVAL_EXPRESSIONS.get(eval, Expression::compile).evaluate(env, functions);
             return res instanceof Boolean && (Boolean) res;
         } catch (Exception e) {
             Util.logPrintfWarn("Execute 'eval' function error, nested exception is: {}", e.getMessage());
