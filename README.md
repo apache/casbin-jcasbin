@@ -28,8 +28,6 @@ under the License.
 
 **News**: still worry about how to write the correct jCasbin policy? `Casbin online editor` is coming to help! Try it at: https://casbin.apache.org/editor/
 
-![casbin Logo](casbin-logo.png)
-
 jCasbin is a powerful and efficient open-source access control library for Java projects. It provides support for enforcing authorization based on various [access control models](https://en.wikipedia.org/wiki/Computer_security_model).
 
 ## All the languages supported by Casbin:
@@ -147,6 +145,35 @@ both copies of JCasbin are not placed on the classpath. Existing releases under
 the old coordinates remain available. Release candidates are for review and are
 not published to Maven Central; use the new coordinates after the release is
 approved and published.
+
+### Upgrading from 1.100.0 to 1.101.0
+
+JCasbin 1.101.0 switches matcher evaluation from Aviator to JCasbin's built-in evaluator. The Maven coordinates remain `org.apache.casbin:jcasbin`. This release changes the Java API for Aviator-based custom matcher functions and direct access to the Aviator evaluator.
+
+| Existing integration | What to change |
+| --- | --- |
+| `Enforcer.addFunction(name, CustomFunction)` or `FunctionMap.addFunction(name, AviatorFunction)` | Keep the function name used in the matcher. Port the implementation to `org.casbin.jcasbin.expression.ExpressionFunction` and register it with the corresponding `addFunction` method. Code that accesses `FunctionMap.fm` directly now uses `ExpressionFunction` values. |
+| A subclass of JCasbin's `CustomFunction` | Keep `getName()` and implement `Object call(Object... args)`. Arguments are evaluated Java values. Return a Java value such as `boolean` or `String`, replacing Aviator argument and result wrappers. `FunctionArgs` provides argument checks and readers. |
+| Aviator evaluator getters or setters on the enforcer, `FunctionMap`, or `CustomFunction` | Register application-specific matcher functions with `addFunction`. For direct expression evaluation, migrate to `Expression.compile(matcher).evaluate(variables, functions)` with Java values and the new function type. Aviator-specific configuration requires an application change. |
+| `ExpressionValidator.validateExpression(matcher)` | Use `Expression.compile(matcher)` to check syntax with the new parser and handle `ExpressionException`. Review additional validation rules used by your application. |
+
+For example, a matcher that already calls `isPublic(r.obj)` can keep that name and register the migrated function:
+
+```java
+import org.casbin.jcasbin.main.Enforcer;
+import org.casbin.jcasbin.util.function.FunctionArgs;
+
+class MatcherFunctions {
+    static void register(Enforcer enforcer) {
+        enforcer.addFunction("isPublic", args -> {
+            FunctionArgs.checkCount("isPublic", args, 1);
+            return FunctionArgs.getString(args, 0).startsWith("/public/");
+        });
+    }
+}
+```
+
+Recompile applications and integration libraries that reference the previous custom-function or evaluator API. A JAR compiled against the old `addFunction` signature can fail at runtime with `NoSuchMethodError` when only the JCasbin dependency is upgraded. Retest the application's matcher expressions and authorization decisions, especially any expressions that relied on Aviator-specific behavior. For applications that use built-in matchers, the first step is to rerun their existing authorization tests with the new version.
 
 ## Documentation
 

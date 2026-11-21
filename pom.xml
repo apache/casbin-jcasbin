@@ -23,7 +23,7 @@ under the License.
 
     <groupId>org.apache.casbin</groupId>
     <artifactId>jcasbin</artifactId>
-    <!-- The real version is supplied at release time with -Drevision=X.Y.Z (see RELEASING.md). -->
+    <!-- Use the version in this source unless overridden with -Drevision (see RELEASING.md). -->
     <version>${revision}</version>
 
     <name>Apache jCasbin (Incubating)</name>
@@ -76,7 +76,7 @@ under the License.
     </developers>
 
     <properties>
-        <revision>0.0.0</revision>
+        <revision>1.101.0</revision>
         <javaVersion>8</javaVersion>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <slf4j.version>2.0.16</slf4j.version>
