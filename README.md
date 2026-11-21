@@ -133,7 +133,7 @@ For Maven:
 <dependency>
   <groupId>org.apache.casbin</groupId>
   <artifactId>jcasbin</artifactId>
-  <version>1.x.y (replace with latest version)</version>
+  <version>2.x.y (replace with latest version)</version>
 </dependency>
 ```
 
@@ -146,9 +146,9 @@ the old coordinates remain available. Release candidates are for review and are
 not published to Maven Central; use the new coordinates after the release is
 approved and published.
 
-### Upgrading from 1.100.0 to 1.101.0
+### Upgrading from 1.x to 2.0.0
 
-JCasbin 1.101.0 switches matcher evaluation from Aviator to JCasbin's built-in evaluator. The Maven coordinates remain `org.apache.casbin:jcasbin`. This release changes the Java API for Aviator-based custom matcher functions and direct access to the Aviator evaluator.
+JCasbin 2.0.0 switches matcher evaluation from Aviator to JCasbin's built-in evaluator. The Maven coordinates remain `org.apache.casbin:jcasbin`. This major release changes the Java API for Aviator-based custom matcher functions and direct access to the Aviator evaluator.
 
 | Existing integration | What to change |
 | --- | --- |
