@@ -51,6 +51,35 @@ public class RoleManagerUnitTest {
     }
 
     @Test
+    public void testConditionalDomainLinkConditionScope() {
+        ConditionalDomainManager rm = new ConditionalDomainManager(10);
+        rm.addLink("alice", "admin", "domain1");
+        rm.addDomainLinkConditionFunc("alice", "admin", "domain1", params -> "yes".equals(params[0]));
+        rm.setDomainLinkConditionFuncParams("alice", "admin", "domain1", "yes");
+        rm.addLink("bob", "admin", "domain2");
+        TestUtil.testHasRole(rm, "alice", "admin", "domain1", true);
+        TestUtil.testHasRole(rm, "alice", "admin", "domain2", false);
+        rm.setDomainLinkConditionFuncParams("alice", "admin", "domain1", "no");
+        TestUtil.testHasRole(rm, "alice", "admin", "domain1", false);
+
+        rm.setDomainLinkConditionFuncParams("carol", "admin", "domain3", "yes");
+        rm.addDomainLinkConditionFunc("carol", "admin", "domain3", params -> "yes".equals(params[0]));
+        rm.addLink("carol", "admin", "domain3");
+        TestUtil.testHasRole(rm, "carol", "admin", "domain3", true);
+
+        rm = new ConditionalDomainManager(10);
+        rm.addDomainMatchingFunc("keyMatch", BuiltInFunctions::keyMatch);
+        rm.setDomainLinkConditionFuncParams("dave", "admin", "domain*", "yes");
+        rm.addDomainLinkConditionFunc("dave", "admin", "domain*", params -> "yes".equals(params[0]));
+        rm.addLink("bob", "admin", "domain1");
+        rm.addLink("dave", "admin", "domain*");
+        TestUtil.testHasRole(rm, "dave", "admin", "domain1", true);
+        rm.setDomainLinkConditionFuncParams("dave", "admin", "domain*", "no");
+        TestUtil.testHasRole(rm, "dave", "admin", "domain1", false);
+        TestUtil.testHasRole(rm, "bob", "admin", "domain1", true);
+    }
+
+    @Test
     public void testDeletingPatternLinkPreservesExplicitDomainLink() {
         DomainManager standard = new DomainManager(10);
         standard.addDomainMatchingFunc("keyMatch", BuiltInFunctions::keyMatch);

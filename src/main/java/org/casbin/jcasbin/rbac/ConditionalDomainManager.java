@@ -147,8 +147,7 @@ public class ConditionalDomainManager extends ConditionalRoleManager {
 
     @Override
     public void addDomainLinkConditionFunc(String userName, String roleName, String domain, Function<String[], Boolean> fn) {
-        getRoleManager(domain);
-        this.rmMap.values().forEach(rm -> rm.addDomainLinkConditionFunc(userName, roleName, domain, fn));
+        getRoleManager(domain).addDomainLinkConditionFunc(userName, roleName, domain, fn);
         this.matchedRmMap.clear();
     }
 
@@ -160,7 +159,7 @@ public class ConditionalDomainManager extends ConditionalRoleManager {
 
     @Override
     public void setDomainLinkConditionFuncParams(String userName, String roleName, String domain, String... params) {
-        this.rmMap.values().forEach(rm -> rm.setDomainLinkConditionFuncParams(userName, roleName, domain, params));
+        getRoleManager(domain).setDomainLinkConditionFuncParams(userName, roleName, domain, params);
         this.matchedRmMap.clear();
     }
 
