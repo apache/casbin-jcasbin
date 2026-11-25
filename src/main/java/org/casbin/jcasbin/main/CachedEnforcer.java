@@ -171,19 +171,17 @@ public class CachedEnforcer extends Enforcer{
         }
 
         boolean result = super.enforce(rvals);
-        if (getPolicyVersion() == version) {
-            setCachedResult(key, result, expireTime);
-        }
+        setCachedResult(version, key, result, expireTime);
         return result;
     }
 
     private void syncCacheVersion(long version) {
-        if (cacheVersion == version) {
+        if (version <= cacheVersion) {
             return;
         }
         READ_WRITE_LOCK.writeLock().lock();
         try {
-            if (cacheVersion != version) {
+            if (version > cacheVersion) {
                 cache.clear();
                 cacheVersion = version;
             }
@@ -233,9 +231,13 @@ public class CachedEnforcer extends Enforcer{
      * @param result     The result to cache.
      * @param expireTime The duration for which the result should be cached.
      */
-    private void setCachedResult(String key, boolean result, Duration expireTime) {
+    // A decision is cached only if no newer policy version has been seen since the enforcement started.
+    private void setCachedResult(long version, String key, boolean result, Duration expireTime) {
         READ_WRITE_LOCK.writeLock().lock();
         try {
+            if (version != cacheVersion || version != getPolicyVersion()) {
+                return;
+            }
             cache.set(key, result, expireTime);
         } finally {
             READ_WRITE_LOCK.writeLock().unlock();

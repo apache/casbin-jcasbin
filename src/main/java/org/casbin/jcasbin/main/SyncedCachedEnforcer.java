@@ -181,11 +181,11 @@ public class SyncedCachedEnforcer extends SyncedEnforcer{
     }
 
     private void syncCacheVersion(long version) {
-        if (cacheVersion == version) {
+        if (version <= cacheVersion) {
             return;
         }
         synchronized (cacheVersionLock) {
-            if (cacheVersion != version) {
+            if (version > cacheVersion) {
                 cache.clear();
                 cacheVersion = version;
             }
