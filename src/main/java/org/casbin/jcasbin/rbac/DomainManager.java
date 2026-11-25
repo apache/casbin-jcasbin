@@ -103,7 +103,7 @@ public class DomainManager implements RoleManager {
         Boolean matched = this.domainMatchingFuncCache.get(cacheKey);
         if (matched == null) {
             if (this.domainMatchingFunc != null) {
-                matched = this.domainMatchingFunc.test(str, pattern);
+                matched = DefaultRoleManager.match(this.domainMatchingFunc, str, pattern);
             } else {
                 matched = str.equals(pattern);
             }

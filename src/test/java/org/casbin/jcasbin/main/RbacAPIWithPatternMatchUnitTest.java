@@ -29,6 +29,19 @@ import static org.casbin.jcasbin.main.TestUtil.*;
 public class RbacAPIWithPatternMatchUnitTest {
 
     @Test
+    public void testInvalidPatternInGroupingPolicy() {
+        Enforcer e = new Enforcer("examples/rbac_with_pattern_model.conf", "examples/rbac_with_pattern_policy.csv");
+        e.enableAutoSave(false);
+        e.addNamedMatchingFunc("g2", "keyMatch2", BuiltInFunctions::keyMatch2);
+        e.addNamedGroupingPolicy("g2", "/book/(1", "book_group");
+
+        testEnforce(e, "alice", "/book/1", "GET", true);
+        testEnforce(e, "alice", "/book/(1", "GET", true);
+        testEnforce(e, "alice", "/pen/1", "GET", true);
+        testEnforce(e, "alice", "/pen/2", "GET", false);
+    }
+
+    @Test
     public void testEnforceAPIWithKeyMatch3Pattern() {
         final Enforcer e = new Enforcer("examples/rbac_with_pattern_model.conf");
         e.setAdapter(new FileAdapter("examples/rbac_with_pattern_policy.csv"));

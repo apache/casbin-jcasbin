@@ -51,6 +51,33 @@ public class RoleManagerUnitTest {
     }
 
     @Test
+    public void testInvalidPatternMatchesNothing() {
+        DefaultRoleManager rm = new DefaultRoleManager(10);
+        rm.addMatchingFunc("regexMatch", BuiltInFunctions::regexMatch);
+        rm.addLink("u(", "user");
+        rm.addLink("u\\d+", "user");
+        TestUtil.testHasRole(rm, "u1", "user", true);
+        TestUtil.testHasRole(rm, "u(", "user", true);
+        TestUtil.testHasRole(rm, "v1", "user", false);
+
+        DomainManager dm = new DomainManager(10);
+        dm.addDomainMatchingFunc("regexMatch", BuiltInFunctions::regexMatch);
+        dm.addLink("alice", "admin", "(domain");
+        dm.addLink("bob", "admin", "domain.*");
+        TestUtil.testHasRole(dm, "alice", "admin", "(domain", true);
+        TestUtil.testHasRole(dm, "bob", "admin", "domain1", true);
+        TestUtil.testHasRole(dm, "alice", "admin", "domain1", false);
+
+        ConditionalDomainManager cdm = new ConditionalDomainManager(10);
+        cdm.addDomainMatchingFunc("regexMatch", BuiltInFunctions::regexMatch);
+        cdm.addLink("alice", "admin", "(domain");
+        cdm.addLink("bob", "admin", "domain.*");
+        TestUtil.testHasRole(cdm, "alice", "admin", "(domain", true);
+        TestUtil.testHasRole(cdm, "bob", "admin", "domain1", true);
+        TestUtil.testHasRole(cdm, "alice", "admin", "domain1", false);
+    }
+
+    @Test
     public void testConditionalDomainLinkConditionScope() {
         ConditionalDomainManager rm = new ConditionalDomainManager(10);
         rm.addLink("alice", "admin", "domain1");

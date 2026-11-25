@@ -93,7 +93,7 @@ public class ConditionalDomainManager extends ConditionalRoleManager {
         Boolean matched = this.domainMatchingFuncCache.get(cacheKey);
         if (matched == null) {
             if (this.domainMatchingFunc != null) {
-                matched = this.domainMatchingFunc.test(str, pattern);
+                matched = match(this.domainMatchingFunc, str, pattern);
             } else {
                 matched = str.equals(pattern);
             }

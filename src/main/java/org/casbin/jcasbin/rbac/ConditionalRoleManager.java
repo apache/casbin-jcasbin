@@ -55,7 +55,7 @@ public class ConditionalRoleManager extends DefaultRoleManager{
     }
 
     public synchronized boolean hasLink(String name1, String name2, String... domains) {
-        if (name1.equals(name2) || (this.matchingFunc != null && this.matchingFunc.test(name1, name2))) {
+        if (name1.equals(name2) || (this.matchingFunc != null && match(this.matchingFunc, name1, name2))) {
             return true;
         }
 
@@ -151,7 +151,7 @@ public class ConditionalRoleManager extends DefaultRoleManager{
         }
         for (Map.Entry<LinkConditionFuncKey, Function<String[], Boolean>> entry : user.getLinkConditionFuncMap().entrySet()) {
             LinkConditionFuncKey key = entry.getKey();
-            if (!key.getRoleName().equals(name2) || key.getDomainName().equals(domain) || !domainMatchingFunc.test(domain, key.getDomainName())) {
+            if (!key.getRoleName().equals(name2) || key.getDomainName().equals(domain) || !match(domainMatchingFunc, domain, key.getDomainName())) {
                 continue;
             }
             List<String> params = getLinkConditionFuncParams(name1, name2, new String[]{key.getDomainName()});

@@ -97,13 +97,22 @@ public class DefaultRoleManager implements RoleManager {
         Boolean matched = this.matchingFuncCache.get(cacheKey);
         if (matched == null) {
             if (this.matchingFunc != null) {
-                matched = this.matchingFunc.test(str, pattern);
+                matched = match(this.matchingFunc, str, pattern);
             } else {
                 matched = str.equals(pattern);
             }
             this.matchingFuncCache.put(cacheKey, matched);
         }
         return matched;
+    }
+
+    // An invalid pattern, such as a malformed regular expression in a policy, matches nothing.
+    static boolean match(BiPredicate<String, String> matchingFunc, String str, String pattern) {
+        try {
+            return matchingFunc.test(str, pattern);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     Role getRole(String name) {
@@ -182,7 +191,7 @@ public class DefaultRoleManager implements RoleManager {
      */
     @Override
     public synchronized boolean hasLink(String name1, String name2, String... domain) {
-        if (name1.equals(name2) || (this.matchingFunc != null && this.matchingFunc.test(name1, name2))) {
+        if (name1.equals(name2) || (this.matchingFunc != null && match(this.matchingFunc, name1, name2))) {
             return true;
         }
 
