@@ -261,6 +261,35 @@ public class EnforcerUnitTest {
     }
 
     @Test
+    public void testFileAdapterQuotesFields() throws IOException {
+        File policyFile = File.createTempFile("jcasbin_policy", ".csv");
+        policyFile.deleteOnExit();
+        Files.write(policyFile.toPath(), "p, alice, data1, read\n".getBytes(StandardCharsets.UTF_8));
+
+        Enforcer e = new Enforcer("examples/basic_model.conf", policyFile.getPath());
+        e.addPolicy("alice, data", "data1", "read");
+        e.addPolicy("bob \"admin\"", "data2", "write");
+        e.savePolicy();
+
+        e = new Enforcer("examples/basic_model.conf", policyFile.getPath());
+        assertEquals(e.getPolicy(), asList(
+            asList("alice", "data1", "read"),
+            asList("alice, data", "data1", "read"),
+            asList("bob \"admin\"", "data2", "write")));
+        testEnforce(e, "alice, data", "data1", "read", true);
+        testEnforce(e, "alice", "data", "data1", false);
+
+        e.enableAutoSave(true);
+        assertTrue(e.addPolicy("carol, x", "data3", "read"));
+        assertTrue(e.removePolicy("alice, data", "data1", "read"));
+        e = new Enforcer("examples/basic_model.conf", policyFile.getPath());
+        assertEquals(e.getPolicy(), asList(
+            asList("alice", "data1", "read"),
+            asList("bob \"admin\"", "data2", "write"),
+            asList("carol, x", "data3", "read")));
+    }
+
+    @Test
     public void testFileAdapterRejectsLineBreaksInFields() throws IOException {
         File policyFile = File.createTempFile("jcasbin_policy", ".csv");
         policyFile.deleteOnExit();

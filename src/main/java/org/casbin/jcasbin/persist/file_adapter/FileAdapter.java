@@ -111,13 +111,24 @@ public class FileAdapter implements Adapter {
     }
 
     // Policy lines are loaded one physical line at a time, so a field must not contain a line break.
+    // Fields containing commas or double quotes are quoted so they load back as one field.
     private static String policyLine(String ptype, List<String> rule) {
+        List<String> fields = new ArrayList<>(rule.size() + 1);
+        fields.add(csvField(ptype));
         for (String field : rule) {
             if (field != null && (field.indexOf('\n') >= 0 || field.indexOf('\r') >= 0)) {
                 throw new CasbinAdapterException("invalid policy field " + field + ": line breaks are not allowed");
             }
+            fields.add(csvField(field));
         }
-        return ptype + ", " + Util.arrayToString(rule);
+        return Util.arrayToString(fields);
+    }
+
+    private static String csvField(String field) {
+        if (field == null || (field.indexOf(',') < 0 && field.indexOf('"') < 0)) {
+            return field;
+        }
+        return '"' + field.replace("\"", "\"\"") + '"';
     }
 
     private void loadPolicyData(Model model, Helper.loadPolicyLineHandler<String, Model> handler, InputStream inputStream) {
@@ -161,7 +172,7 @@ public class FileAdapter implements Adapter {
      */
     @Override
     public void removePolicy(String sec, String ptype, List<String> rule) {
-        String ruleText = ptype + ", " + String.join(", ", rule);
+        String ruleText = policyLine(ptype, rule);
         if (byteArrayInputStream != null && readOnly) {
             throw new CasbinAdapterException("Policy file can not write, because use inputStream is readOnly");
         }
