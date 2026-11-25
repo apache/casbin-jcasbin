@@ -231,13 +231,12 @@ public class SyncedCachedEnforcer extends SyncedEnforcer{
         StringBuilder key = new StringBuilder();
         for (Object param : params) {
             if (param instanceof String) {
-                key.append((String) param);
+                CachedEnforcer.appendCacheKeyPart(key, 's', (String) param);
             } else if (param instanceof CacheableParam) {
-                key.append(((CacheableParam) param).getCacheKey());
+                CachedEnforcer.appendCacheKeyPart(key, 'c', ((CacheableParam) param).getCacheKey());
             } else {
                 return "";
             }
-            key.append("$$");
         }
         return key.toString();
     }

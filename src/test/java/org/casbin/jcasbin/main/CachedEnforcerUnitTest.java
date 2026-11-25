@@ -18,7 +18,6 @@
 package org.casbin.jcasbin.main;
 
 import org.casbin.jcasbin.persist.cache.Cache;
-import org.casbin.jcasbin.persist.cache.CacheableParam;
 import org.casbin.jcasbin.persist.cache.DefaultCache;
 import org.testng.annotations.Test;
 
@@ -104,26 +103,24 @@ public class CachedEnforcerUnitTest {
 
     }
 
-    /**
-     * Generates a cache key based on the provided parameters.
-     *
-     * @param params Variable arguments of type Object that will be used to construct the cache key.
-     *               The method expects parameters to be either Strings or instances of CacheableParam.
-     * @return A String representing the constructed cache key, or null if an unsupported type is encountered.
-     */
     String getKey(Object... params) {
-        StringBuilder keyBuilder = new StringBuilder();
-        for (Object param : params) {
-            if (param instanceof String) {
-                keyBuilder.append(param);
-            } else if (param instanceof CacheableParam) {
-                keyBuilder.append(((CacheableParam) param).getCacheKey());
-            } else {
-                return null;
-            }
-            keyBuilder.append("$$");
-        }
-        return keyBuilder.toString();
+        return cachedEnforcer.getCacheKey(params);
+    }
+
+    @Test
+    public void testCacheKeysDoNotCollide() {
+        cachedEnforcer = new CachedEnforcer("examples/basic_model.conf", "examples/basic_policy.csv");
+        assertNotEquals(cachedEnforcer.getCacheKey("alice$$data1", "read"), cachedEnforcer.getCacheKey("alice", "data1$$read"));
+        assertNotEquals(cachedEnforcer.getCacheKey("ab", "c"), cachedEnforcer.getCacheKey("a", "bc"));
+
+        cachedEnforcer.addPolicy("alice$$data1", "read", "write");
+        assertTrue(cachedEnforcer.enforce("alice$$data1", "read", "write"));
+        assertFalse(cachedEnforcer.enforce("alice", "data1$$read", "write"));
+
+        SyncedCachedEnforcer syncedEnforcer = new SyncedCachedEnforcer("examples/basic_model.conf", "examples/basic_policy.csv");
+        syncedEnforcer.addPolicy("alice$$data1", "read", "write");
+        assertTrue(syncedEnforcer.enforce("alice$$data1", "read", "write"));
+        assertFalse(syncedEnforcer.enforce("alice", "data1$$read", "write"));
     }
 
     @Test

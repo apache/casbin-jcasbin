@@ -249,18 +249,8 @@ public class CachedEnforcer extends Enforcer{
      * @return The generated cache key, or null if invalid parameters are provided.
      */
     private String getKey(Object... params) {
-        StringBuilder keyBuilder = new StringBuilder();
-        for (Object param : params) {
-            if (param instanceof String) {
-                keyBuilder.append(param);
-            } else if (param instanceof CacheableParam) {
-                keyBuilder.append(((CacheableParam) param).getCacheKey());
-            } else {
-                return null;
-            }
-            keyBuilder.append("$$");
-        }
-        return keyBuilder.toString();
+        String key = getCacheKey(params);
+        return key.isEmpty() && params.length > 0 ? null : key;
     }
 
     /**
@@ -274,17 +264,22 @@ public class CachedEnforcer extends Enforcer{
 
         for (Object param : params) {
             if (param instanceof String) {
-                key.append((String) param);
+                appendCacheKeyPart(key, 's', (String) param);
             } else if (param instanceof CacheableParam) {
-                key.append(((CacheableParam) param).getCacheKey());
+                appendCacheKeyPart(key, 'c', ((CacheableParam) param).getCacheKey());
             } else {
                 // Return an error identifier
                 return "";
             }
-            key.append("$$");
         }
         // Return the constructed key
         return key.toString();
+    }
+
+    // Each part is length-prefixed so that different requests never share a key.
+    static void appendCacheKeyPart(StringBuilder key, char kind, String part) {
+        part = String.valueOf(part);
+        key.append(kind).append(part.length()).append(':').append(part);
     }
 
     /**
