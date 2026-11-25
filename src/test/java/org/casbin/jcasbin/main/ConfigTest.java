@@ -39,6 +39,7 @@ public class ConfigTest {
         assertEquals("10.0.0.1", config.getString("mysql::mysql.master.host"));
         assertEquals("root", config.getString("mysql::mysql.master.user"));
         assertEquals("89dds)2$", config.getString("mysql::mysql.master.pass"));
+        assertEquals("\"a#b;c\" 'd#e'", config.getString("mysql::mysql.master.note"));
 
         // math::key test
         assertEquals(64, config.getInt("math::math.i64"));

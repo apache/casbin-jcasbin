@@ -158,14 +158,7 @@ public class Util {
             if (quote != '"' && quote != '\'') {
                 continue;
             }
-            int end = i + 1;
-            while (end < s.length() && s.charAt(end) != quote) {
-                if (s.charAt(end) == '\\') {
-                    end++;
-                }
-                end++;
-            }
-            end = Math.min(end + 1, s.length());
+            int end = stringLiteralEnd(s, i);
             sb.append(escapeAssertionUnquoted(s.substring(start, i)));
             sb.append(s, i, end);
             start = end;
@@ -173,6 +166,26 @@ public class Util {
         }
         sb.append(escapeAssertionUnquoted(s.substring(start)));
         return sb.toString();
+    }
+
+    /**
+     * stringLiteralEnd returns the index just past the string literal that opens at s[i],
+     * or the length of s when the literal is not closed.
+     *
+     * @param s the text.
+     * @param i the index of the opening quote.
+     * @return the index just past the closing quote.
+     */
+    public static int stringLiteralEnd(String s, int i) {
+        char quote = s.charAt(i);
+        int end = i + 1;
+        while (end < s.length() && s.charAt(end) != quote) {
+            if (s.charAt(end) == '\\') {
+                end++;
+            }
+            end++;
+        }
+        return Math.min(end + 1, s.length());
     }
 
     private static String escapeAssertionUnquoted(String s) {
@@ -189,16 +202,22 @@ public class Util {
 
     /**
      * removeComments removes the comments starting with # in the text.
+     * A # inside a quoted string literal is part of the literal.
      *
      * @param s a line in the model.
      * @return the line without comments.
      */
     public static String removeComments(String s) {
-        int pos = s.indexOf("#");
-        if (pos == -1) {
-            return s;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '#') {
+                return s.substring(0, i).trim();
+            }
+            if (c == '"' || c == '\'') {
+                i = stringLiteralEnd(s, i) - 1;
+            }
         }
-        return s.substring(0, pos).trim();
+        return s;
     }
 
     /**

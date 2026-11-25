@@ -18,6 +18,7 @@
 package org.casbin.jcasbin.config;
 
 import org.casbin.jcasbin.exception.CasbinConfigException;
+import org.casbin.jcasbin.util.Util;
 
 import java.io.*;
 import java.util.HashMap;
@@ -123,11 +124,7 @@ public class Config {
             } else if (line.startsWith("[") && line.endsWith("]")) {
                 section = line.substring(1, line.length() - 1);
             } else {
-                int index1 = line.indexOf(DEFAULT_COMMENT);
-                int index2 = line.indexOf(DEFAULT_COMMENT_SEM);
-                int index = (index1 != -1 && index2 != -1) ? Math.min(index1, index2) : (index1 != -1) ? index1 : (index2 != -1) ? index2 : -1;
-                if (index != -1)
-                    line = line.substring(0, index);
+                line = removeComment(line);
 
                 String[] optionVal = line.split("=", 2);
                 if (optionVal.length != 2) {
@@ -154,6 +151,19 @@ public class Config {
                 addConfig(section, option, value);
             }
         }
+    }
+
+    // A comment marker inside a quoted string is part of the value.
+    private static String removeComment(String line) {
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"' || c == '\'') {
+                i = Util.stringLiteralEnd(line, i) - 1;
+            } else if (c == DEFAULT_COMMENT.charAt(0) || c == DEFAULT_COMMENT_SEM.charAt(0)) {
+                return line.substring(0, i);
+            }
+        }
+        return line;
     }
 
     public boolean getBool(String key) {

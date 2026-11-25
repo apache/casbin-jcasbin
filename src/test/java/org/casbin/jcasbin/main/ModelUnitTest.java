@@ -1190,4 +1190,25 @@ public class ModelUnitTest {
         testDomainEnforce(e, "alice", "domain_not_exist", "data8", "read", false);
         testDomainEnforce(e, "alice", "domain_not_exist", "data8", "write", false);
     }
+
+    @Test
+    public void testCommentMarkersInQuotedMatcherStrings() {
+        String text = "[request_definition]\n"
+            + "r = sub, obj\n"
+            + "[policy_definition]\n"
+            + "p = sub, obj\n"
+            + "[policy_effect]\n"
+            + "e = some(where (p.eft == allow))\n"
+            + "[matchers]\n"
+            + "m = r.sub == p.sub && r.obj == \"a#b;c\" && r.obj != 'x#y' # note\n";
+        Model m = Model.newModelFromString(text);
+        assertEquals(m.model.get("m").get("m").value, "r_sub == p_sub && r_obj == \"a#b;c\" && r_obj != 'x#y'");
+
+        Enforcer e = new Enforcer(m);
+        e.addPolicy("alice", "data1");
+        assertTrue(e.enforce("alice", "a#b;c"));
+        assertFalse(e.enforce("alice", "a"));
+        assertTrue(e.enforceWithMatcher("r.sub == p.sub && r.obj == \"a#b\" # note", "alice", "a#b"));
+        assertFalse(e.enforceWithMatcher("r.sub == p.sub && r.obj == \"a#b\" # note", "alice", "a"));
+    }
 }
