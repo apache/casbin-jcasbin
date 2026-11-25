@@ -32,7 +32,7 @@ public class Helper {
     }
 
     public static void loadPolicyLine(String line, Model model) {
-        if ("".equals(line)) {
+        if (line.trim().isEmpty()) {
             return;
         }
 
@@ -41,6 +41,9 @@ public class Helper {
         }
 
         String[] tokens = splitCommaDelimited(line);
+        if (tokens == null || tokens.length == 0 || tokens[0].isEmpty()) {
+            throw new IllegalArgumentException("invalid policy rule: missing policy type: " + line);
+        }
 
         String key = tokens[0];
         String sec = key.substring(0, 1);

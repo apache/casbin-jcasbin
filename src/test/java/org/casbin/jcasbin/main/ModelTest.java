@@ -19,6 +19,7 @@ package org.casbin.jcasbin.main;
 
 import org.casbin.jcasbin.config.Config;
 import org.casbin.jcasbin.model.Model;
+import org.casbin.jcasbin.persist.Helper;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
@@ -73,6 +74,16 @@ public class ModelTest {
     public void testNewModelFromFile() {
         Model m = Model.newModelFromFile(basicExample);
         assertNotNull(m);
+    }
+
+    @Test
+    public void testLoadPolicyLineWithoutPolicyType() throws IOException {
+        Model m = Model.newModelFromString(new String(Files.readAllBytes(Paths.get(basicExample))));
+        Helper.loadPolicyLine("   ", m);
+        Helper.loadPolicyLine("p, alice, data1, read", m);
+        assertEquals(m.getPolicy("p", "p").size(), 1);
+        assertThrows(IllegalArgumentException.class, () -> Helper.loadPolicyLine(" , alice, data1, read", m));
+        assertEquals(m.getPolicy("p", "p").size(), 1);
     }
 
     @Test
