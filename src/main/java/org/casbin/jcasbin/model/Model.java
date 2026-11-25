@@ -346,7 +346,7 @@ public class Model extends Policy {
             }
             assertion.policy.sort(Comparator.comparingInt(p -> Integer.parseInt(p.get(priorityIndex))));
             for (int i = 0; i < assertion.policy.size(); ++i) {
-                assertion.policyIndex.put(assertion.policy.get(i).toString(), i);
+                assertion.policyIndex.put(Assertion.policyKey(assertion.policy.get(i)), i);
             }
         }
     }
@@ -381,7 +381,7 @@ public class Model extends Policy {
             });
             assertion.policyIndex.clear();
             for (int i = 0; i < assertion.policy.size(); ++i) {
-                assertion.policyIndex.put(assertion.policy.get(i).toString(), i);
+                assertion.policyIndex.put(Assertion.policyKey(assertion.policy.get(i)), i);
             }
         }
 

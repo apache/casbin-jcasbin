@@ -57,6 +57,6 @@ public class Helper {
         }
         List<String> policy = Arrays.asList(Arrays.copyOfRange(tokens, 1, tokens.length));
         ast.policy.add(policy);
-        ast.policyIndex.put(policy.toString(), ast.policy.size() - 1);
+        ast.policyIndex.put(Assertion.policyKey(policy), ast.policy.size() - 1);
     }
 }

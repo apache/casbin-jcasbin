@@ -25,7 +25,10 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.casbin.jcasbin.model.Model.requiredSections;
@@ -74,6 +77,19 @@ public class ModelTest {
     public void testNewModelFromFile() {
         Model m = Model.newModelFromFile(basicExample);
         assertNotNull(m);
+    }
+
+    @Test
+    public void testPolicyIndexKeysDoNotCollide() throws IOException {
+        Model m = Model.newModelFromString(new String(Files.readAllBytes(Paths.get(basicExample))));
+        List<String> rule1 = Arrays.asList("alice", "data1, read", "x");
+        List<String> rule2 = Arrays.asList("alice, data1", "read", "x");
+        assertTrue(m.addPolicy("p", "p", rule1));
+        assertFalse(m.hasPolicy("p", "p", rule2));
+        assertTrue(m.addPolicy("p", "p", rule2));
+        assertTrue(m.removePolicy("p", "p", rule2));
+        assertEquals(m.getPolicy("p", "p"), Collections.singletonList(rule1));
+        assertTrue(m.hasPolicy("p", "p", rule1));
     }
 
     @Test

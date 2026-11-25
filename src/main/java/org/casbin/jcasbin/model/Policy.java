@@ -176,7 +176,7 @@ public class Policy {
      * @return whether the rule exists.
      */
     public boolean hasPolicy(String sec, String ptype, List<String> rule) {
-        return model.get(sec).get(ptype).policyIndex.containsKey(rule.toString());
+        return model.get(sec).get(ptype).policyIndex.containsKey(Assertion.policyKey(rule));
     }
 
     /**
@@ -208,11 +208,11 @@ public class Policy {
                 }
                 policy.add(left, rule);
                 for (int i = left; i < assertion.policy.size(); ++i) {
-                    assertion.policyIndex.put(assertion.policy.get(i).toString(), i);
+                    assertion.policyIndex.put(Assertion.policyKey(assertion.policy.get(i)), i);
                 }
             } else {
                 policy.add(rule);
-                assertion.policyIndex.put(rule.toString(), policy.size() - 1);
+                assertion.policyIndex.put(Assertion.policyKey(rule), policy.size() - 1);
             }
 
             return true;
@@ -253,10 +253,10 @@ public class Policy {
             return false;
         }
         Assertion ast = model.get(sec).get(ptype);
-        int index = ast.policyIndex.get(oldRule.toString());
+        int index = ast.policyIndex.get(Assertion.policyKey(oldRule));
         ast.policy.set(index, newRule);
-        ast.policyIndex.remove(oldRule.toString());
-        ast.policyIndex.put(newRule.toString(), index);
+        ast.policyIndex.remove(Assertion.policyKey(oldRule));
+        ast.policyIndex.put(Assertion.policyKey(newRule), index);
         return true;
     }
 
@@ -270,12 +270,12 @@ public class Policy {
      */
     public boolean removePolicy(String sec, String ptype, List<String> rule) {
         Assertion ast = model.get(sec).get(ptype);
-        if (ast.policyIndex.containsKey(rule.toString())) {
-            int index = ast.policyIndex.get(rule.toString());
+        if (ast.policyIndex.containsKey(Assertion.policyKey(rule))) {
+            int index = ast.policyIndex.get(Assertion.policyKey(rule));
             ast.policy.remove(index);
-            ast.policyIndex.remove(rule.toString());
+            ast.policyIndex.remove(Assertion.policyKey(rule));
             for (int i = index; i < ast.policy.size(); ++i) {
-                ast.policyIndex.put(ast.policy.get(i).toString(), i);
+                ast.policyIndex.put(Assertion.policyKey(ast.policy.get(i)), i);
             }
 
             return true;
@@ -340,7 +340,7 @@ public class Policy {
             assertion.policy = tmp;
             assertion.policyIndex.clear();
             for (int i = 0; i < assertion.policy.size(); ++i) {
-                assertion.policyIndex.put(assertion.policy.get(i).toString(), i);
+                assertion.policyIndex.put(Assertion.policyKey(assertion.policy.get(i)), i);
             }
         }
 

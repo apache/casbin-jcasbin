@@ -54,6 +54,22 @@ public class Assertion {
         setLogger(logger);
     }
 
+    /**
+     * policyKey returns the key of a policy rule in policyIndex. Each field is length-prefixed,
+     * so rules whose fields contain separators never share a key.
+     *
+     * @param rule the policy rule.
+     * @return the key.
+     */
+    public static String policyKey(List<String> rule) {
+        StringBuilder key = new StringBuilder();
+        for (String field : rule) {
+            String value = String.valueOf(field);
+            key.append(value.length()).append(':').append(value);
+        }
+        return key.toString();
+    }
+
     protected void buildRoleLinks(RoleManager rm) {
         this.rm = rm;
         int count = 0;
