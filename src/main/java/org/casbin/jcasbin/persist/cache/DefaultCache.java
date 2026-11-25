@@ -24,10 +24,27 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class DefaultCache implements Cache {
+    /**
+     * The number of decisions a DefaultCache keeps by default.
+     */
+    public static final int DEFAULT_MAX_ENTRIES = 100000;
+
     private final Map<String, CacheItem> cache;
+    private final int maxEntries;
 
     public DefaultCache() {
+        this(DEFAULT_MAX_ENTRIES);
+    }
+
+    /**
+     * DefaultCache creates a cache that holds at most maxEntries keys. When the cache is full,
+     * adding a new key empties it first. A maxEntries of zero or less means no limit.
+     *
+     * @param maxEntries the maximum number of keys.
+     */
+    public DefaultCache(int maxEntries) {
         this.cache = new ConcurrentHashMap<>();
+        this.maxEntries = maxEntries;
     }
 
     /**
@@ -38,8 +55,7 @@ public class DefaultCache implements Cache {
      * @param ttl   The time-to-live for the cache item; if null or negative, the item will not expire.
      */
     public void set(String key, boolean value, Duration ttl) {
-        CacheItem item = new CacheItem(value, ttl);
-        cache.put(key, item);
+        put(key, new CacheItem(value, ttl));
     }
 
     /**
@@ -49,7 +65,13 @@ public class DefaultCache implements Cache {
      * @param value The boolean value to be stored in the cache.
      */
     public void set(String key, boolean value) {
-        CacheItem item = new CacheItem(value, Duration.ofMillis(-1));
+        put(key, new CacheItem(value, Duration.ofMillis(-1)));
+    }
+
+    private void put(String key, CacheItem item) {
+        if (maxEntries > 0 && !cache.containsKey(key) && cache.size() >= maxEntries) {
+            cache.clear();
+        }
         cache.put(key, item);
     }
 

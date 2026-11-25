@@ -108,6 +108,34 @@ public class CachedEnforcerUnitTest {
     }
 
     @Test
+    public void testDefaultCacheIsBounded() {
+        DefaultCache boundedCache = new DefaultCache(2);
+        boundedCache.set("a", true);
+        boundedCache.set("b", true);
+        boundedCache.set("b", false);
+        assertTrue(boundedCache.get("a"));
+        assertFalse(boundedCache.get("b"));
+
+        boundedCache.set("c", true);
+        assertNull(boundedCache.get("a"));
+        assertNull(boundedCache.get("b"));
+        assertTrue(boundedCache.get("c"));
+
+        cachedEnforcer = new CachedEnforcer("examples/basic_model.conf", "examples/basic_policy.csv");
+        cachedEnforcer.setCache(new DefaultCache(10));
+        for (int i = 0; i < 100; i++) {
+            cachedEnforcer.enforce("user" + i, "data1", "read");
+        }
+        int cached = 0;
+        for (int i = 0; i < 100; i++) {
+            if (cachedEnforcer.getCache().get(cachedEnforcer.getCacheKey("user" + i, "data1", "read")) != null) {
+                cached++;
+            }
+        }
+        assertTrue(cached <= 10, "cached " + cached + " decisions, supposed to be at most 10");
+    }
+
+    @Test
     public void testCacheKeysDoNotCollide() {
         cachedEnforcer = new CachedEnforcer("examples/basic_model.conf", "examples/basic_policy.csv");
         assertNotEquals(cachedEnforcer.getCacheKey("alice$$data1", "read"), cachedEnforcer.getCacheKey("alice", "data1$$read"));
