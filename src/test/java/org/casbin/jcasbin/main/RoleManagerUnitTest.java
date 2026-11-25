@@ -51,6 +51,30 @@ public class RoleManagerUnitTest {
     }
 
     @Test
+    public void testMatchingCacheKeysDoNotCollide() {
+        DefaultRoleManager rm = new DefaultRoleManager(10);
+        rm.addMatchingFunc("exact", (str, pattern) -> "x$$y".equals(str) && "z".equals(pattern));
+        rm.addLink("x$$y", "role1");
+        rm.addLink("z", "role2");
+        TestUtil.testHasRole(rm, "x$$y", "z", true);
+        TestUtil.testHasRole(rm, "x", "y$$z", false);
+
+        DomainManager dm = new DomainManager(10);
+        dm.addDomainMatchingFunc("exact", (domain, pattern) -> "x$$y".equals(domain) && "z".equals(pattern));
+        dm.addLink("alice", "admin", "z");
+        dm.addLink("bob", "admin", "y$$z");
+        TestUtil.testHasRole(dm, "alice", "admin", "x$$y", true);
+        TestUtil.testHasRole(dm, "bob", "admin", "x", false);
+
+        ConditionalDomainManager cdm = new ConditionalDomainManager(10);
+        cdm.addDomainMatchingFunc("exact", (domain, pattern) -> "x$$y".equals(domain) && "z".equals(pattern));
+        cdm.addLink("alice", "admin", "z");
+        cdm.addLink("bob", "admin", "y$$z");
+        TestUtil.testHasRole(cdm, "alice", "admin", "x$$y", true);
+        TestUtil.testHasRole(cdm, "bob", "admin", "x", false);
+    }
+
+    @Test
     public void testInvalidPatternMatchesNothing() {
         DefaultRoleManager rm = new DefaultRoleManager(10);
         rm.addMatchingFunc("regexMatch", BuiltInFunctions::regexMatch);

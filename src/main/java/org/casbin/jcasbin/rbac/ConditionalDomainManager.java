@@ -89,7 +89,7 @@ public class ConditionalDomainManager extends ConditionalRoleManager {
     }
 
     private boolean matchDomain(String str, String pattern) {
-        String cacheKey = String.join("$$", str, pattern);
+        String cacheKey = matchCacheKey(str, pattern);
         Boolean matched = this.domainMatchingFuncCache.get(cacheKey);
         if (matched == null) {
             if (this.domainMatchingFunc != null) {

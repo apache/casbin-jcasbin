@@ -93,7 +93,7 @@ public class DefaultRoleManager implements RoleManager {
     }
 
     boolean match(String str, String pattern) {
-        String cacheKey =  String.join("$$", str, pattern);
+        String cacheKey = matchCacheKey(str, pattern);
         Boolean matched = this.matchingFuncCache.get(cacheKey);
         if (matched == null) {
             if (this.matchingFunc != null) {
@@ -104,6 +104,11 @@ public class DefaultRoleManager implements RoleManager {
             this.matchingFuncCache.put(cacheKey, matched);
         }
         return matched;
+    }
+
+    // The length prefix keeps different (str, pattern) pairs from sharing a key.
+    static String matchCacheKey(String str, String pattern) {
+        return str.length() + ":" + str + pattern;
     }
 
     // An invalid pattern, such as a malformed regular expression in a policy, matches nothing.

@@ -99,7 +99,7 @@ public class DomainManager implements RoleManager {
     }
 
     private boolean match(String str, String pattern) {
-        String cacheKey =  String.join("$$", str, pattern);
+        String cacheKey = DefaultRoleManager.matchCacheKey(str, pattern);
         Boolean matched = this.domainMatchingFuncCache.get(cacheKey);
         if (matched == null) {
             if (this.domainMatchingFunc != null) {
