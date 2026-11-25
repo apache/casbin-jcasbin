@@ -150,14 +150,14 @@ public class BuiltInFunctions {
         StringBuffer sb = new StringBuffer();
         while(m.find()) {
             String group = m.group();
-            tokens.add(group);
             if(group.contains("/")) {
                 group = group.replace("{", "\\{")
                             .replace("}", "\\}")
                             .replace("/", "\\/");
                 m.appendReplacement(sb, Matcher.quoteReplacement(group));
             } else {
-                m.appendReplacement(sb, "([^/]+)");
+                m.appendReplacement(sb, Matcher.quoteReplacement(tokenGroup(tokens.size(), "[^/]+")));
+                tokens.add(group);
             }
         }
         m.appendTail(sb);
@@ -166,31 +166,19 @@ public class BuiltInFunctions {
         p = Pattern.compile("^" + key2 + "$");
         m = p.matcher(key1);
 
-        ArrayList<String> matches = new ArrayList<>();
-        if (m.find()) {
-            for (int i = 0; i <=  m.groupCount(); i++) {
-                matches.add(m.group(i));
-            }
-        }
-
-        if(matches.isEmpty()) {
+        if (!m.find()) {
             return false;
-        }
-
-        matches.remove(0);
-
-        if(tokens.size() != matches.size()) {
-            throw new RuntimeException("KeyMatch4: number of tokens is not equal to number of values");
         }
 
         Map<String ,String> values = new HashMap<>();
 
-        for (int key = 0; key < tokens.size(); ++key) {
-            String token = tokens.get(key);
+        for (int i = 0; i < tokens.size(); ++i) {
+            String token = tokens.get(i);
+            String match = m.group(tokenGroupName(i));
             if(!values.containsKey(token)) {
-                values.put(token, matches.get(key));
+                values.put(token, match);
             }
-            if(!values.get(token).equals(matches.get(key))) {
+            if(!values.get(token).equals(match)) {
                 return false;
             }
         }
@@ -253,27 +241,17 @@ public class BuiltInFunctions {
         key2 = key2.replace("/*", "/.*");
         String regexp = ":[^/]+";
         Pattern re = Pattern.compile(regexp);
-        Matcher keys = re.matcher(key2);
         List<String> keysList = new ArrayList<>();
-        while (keys.find()) {
-            keysList.add(keys.group());
-        }
-        key2 = keys.replaceAll("([^/]+)");
+        key2 = replaceTokens(key2, re, "[^/]+", keysList);
         key2 = "^" + key2 + "$";
         Pattern re2 = Pattern.compile(key2);
         Matcher values = re2.matcher(key1);
-        List<String> valuesList = new ArrayList<>();
-        while (values.find()) {
-            for (int i = 0; i <= values.groupCount(); i++) {
-                valuesList.add(values.group(i));
-            }
-        }
-        if (valuesList.isEmpty()) {
+        if (!values.find()) {
             return "";
         }
         for (int i = 0; i < keysList.size(); i++) {
             if (pathVar.equals(keysList.get(i).substring(1))) {
-                return valuesList.get(i + 1);
+                return values.group(tokenGroupName(i));
             }
         }
         return "";
@@ -292,12 +270,8 @@ public class BuiltInFunctions {
         key2 = key2.replace("/*", "/.*");
         String regexp = "\\{[^/]+?\\}";
         Pattern re = Pattern.compile(regexp);
-        Matcher keys = re.matcher(key2);
         List<String> keysList = new ArrayList<>();
-        while (keys.find()) {
-            keysList.add(keys.group());
-        }
-        key2 = re.matcher(key2).replaceAll("([^/]+?)");
+        key2 = replaceTokens(key2, re, "[^/]+?", keysList);
         // Escape { and } for Java regex compatibility since { is treated as repetition quantifier
         key2 = key2.replace("{", "\\{").replace("}", "\\}");
         key2 = "^" + key2 + "$";
@@ -308,10 +282,30 @@ public class BuiltInFunctions {
         }
         for (int i = 0; i < keysList.size(); i++) {
             if (pathVar.equals(keysList.get(i).substring(1, keysList.get(i).length() - 1))) {
-                return values.group(i + 1);
+                return values.group(tokenGroupName(i));
             }
         }
         return "";
+    }
+
+    // The pattern variables are named capture groups, because key2 can carry capture groups of its own.
+    private static String tokenGroup(int i, String expr) {
+        return "(?<" + tokenGroupName(i) + ">" + expr + ")";
+    }
+
+    private static String tokenGroupName(int i) {
+        return "casbinToken" + i;
+    }
+
+    private static String replaceTokens(String key2, Pattern tokenPattern, String expr, List<String> tokens) {
+        Matcher m = tokenPattern.matcher(key2);
+        StringBuffer sb = new StringBuffer();
+        while (m.find()) {
+            m.appendReplacement(sb, Matcher.quoteReplacement(tokenGroup(tokens.size(), expr)));
+            tokens.add(m.group());
+        }
+        m.appendTail(sb);
+        return sb.toString();
     }
 
     /**

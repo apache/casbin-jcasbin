@@ -126,6 +126,11 @@ public class BuiltInFunctionsUnitTest {
         testKeyMatch4("/parent/123/child/123", "/parent/{i/d}/child/{i/d}", false);
 
         testKeyMatch4("/pipeline/work-order/sit/deploy", "/pipeline/work-order/*/deploy", true);
+
+        testKeyMatch4("/a/123/child/123", "/(a|b)/{id}/child/{id}", true);
+        testKeyMatch4("/a/123/child/456", "/(a|b)/{id}/child/{id}", false);
+        testKeyMatch4("/c/123/child/123", "/(a|b)/{id}/child/{id}", false);
+        testKeyMatch4("/123/x/123", "/{id}/(x|y)/{id}", true);
     }
 
     @Test
@@ -215,6 +220,10 @@ public class BuiltInFunctionsUnitTest {
         testKeyGet2("/alice", "/:id/all", "id", "");
         testKeyGet2("/alice/all", "/:id", "id", "");
         testKeyGet2("/alice/all", "/:/all", "", "");
+
+        testKeyGet2("/a/x/42", "/(a|b)/x/:id", "id", "42");
+        testKeyGet2("/42/a", "/:id/(a|b)", "id", "42");
+        testKeyGet2("/b/7/c/9", "/(a|b)/:x/(c|d)/:y", "y", "9");
     }
 
     @Test
@@ -255,6 +264,10 @@ public class BuiltInFunctionsUnitTest {
             "gn", "group_name");
         testKeyGet3("/api/group1_group_name/project1_admin/info", "/api/{g}_{gn}/{proj}_admin/info",
             "proj", "project1");
+
+        testKeyGet3("/a/x/42", "/(a|b)/x/{id}", "id", "42");
+        testKeyGet3("/42/a", "/{id}/(a|b)", "id", "42");
+        testKeyGet3("/b/7/c/9", "/(a|b)/{x}/(c|d)/{y}", "y", "9");
     }
 
     @Test
