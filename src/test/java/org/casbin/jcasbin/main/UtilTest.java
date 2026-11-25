@@ -29,6 +29,9 @@ import org.mockito.MockedStatic;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import static org.testng.Assert.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -66,6 +69,18 @@ public class UtilTest {
     assertEquals("r.act == p.act", Util.removeComments("r.act == p.act###"));
     assertEquals("", Util.removeComments("### comments"));
     assertEquals("r.act == p.act", Util.removeComments("r.act == p.act"));
+  }
+
+  @Test
+  public void testSetEquals() {
+    List<String> a = new ArrayList<>(Arrays.asList("b", "a", "a"));
+    List<String> b = new ArrayList<>(Arrays.asList("a", "b", "a"));
+    assertTrue(Util.setEquals(a, b));
+    assertEquals(a, Arrays.asList("b", "a", "a"));
+    assertEquals(b, Arrays.asList("a", "b", "a"));
+    assertFalse(Util.setEquals(Arrays.asList("a", "a", "b"), Arrays.asList("a", "b", "b")));
+    assertFalse(Util.setEquals(Arrays.asList("a"), Arrays.asList("a", "b")));
+    assertTrue(Util.setEquals(null, new ArrayList<>()));
   }
 
   @Test

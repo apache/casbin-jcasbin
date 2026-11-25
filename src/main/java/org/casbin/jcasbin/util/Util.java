@@ -352,11 +352,12 @@ public class Util {
             return false;
         }
 
-        Collections.sort(a);
-        Collections.sort(b);
-
-        for (int i = 0; i < a.size(); i++) {
-            if (!a.get(i).equals(b.get(i))) {
+        Map<String, Integer> count = new HashMap<>();
+        for (String v : a) {
+            count.merge(v, 1, Integer::sum);
+        }
+        for (String v : b) {
+            if (count.merge(v, -1, Integer::sum) < 0) {
                 return false;
             }
         }
