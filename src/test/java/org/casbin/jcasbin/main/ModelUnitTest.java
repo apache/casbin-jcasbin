@@ -19,14 +19,18 @@ package org.casbin.jcasbin.main;
 
 import org.casbin.jcasbin.model.Model;
 import org.casbin.jcasbin.persist.file_adapter.AdapterMock;
+import org.casbin.jcasbin.persist.file_adapter.FileAdapter;
 import org.casbin.jcasbin.rbac.RoleManager;
 import org.casbin.jcasbin.util.BuiltInFunctions;
+import org.casbin.jcasbin.util.EnforceContext;
 import org.casbin.jcasbin.util.Util;
 import org.casbin.jcasbin.util.function.CustomFunction;
 import org.casbin.jcasbin.util.function.FunctionArgs;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -1068,6 +1072,37 @@ public class ModelUnitTest {
 
         testDomainEnforce(e, "alice", "domain1", "data1", "write", true);
         testDomainEnforce(e, "bob", "domain2", "data2", "write", true);
+    }
+
+    @Test
+    public void testSubjectPriorityInNonDefaultSection() {
+        String modelText = "[request_definition]\n"
+            + "r = sub, obj, act\n"
+            + "r2 = sub, obj, act\n"
+            + "[policy_definition]\n"
+            + "p = sub, obj, act, eft\n"
+            + "p2 = sub, obj, act, eft\n"
+            + "[role_definition]\n"
+            + "g = _, _\n"
+            + "[policy_effect]\n"
+            + "e = some(where (p.eft == allow))\n"
+            + "e2 = subjectPriority(p.eft) || deny\n"
+            + "[matchers]\n"
+            + "m = r.sub == p.sub && r.obj == p.obj && r.act == p.act\n"
+            + "m2 = g(r2.sub, p2.sub) && r2.obj == p2.obj && r2.act == p2.act\n";
+        String policyText = "p2, admin, data1, read, allow\n"
+            + "p2, alice, data1, read, deny\n"
+            + "g, alice, admin\n";
+        Enforcer e = new Enforcer(Model.newModelFromString(modelText),
+            new FileAdapter(new ByteArrayInputStream(policyText.getBytes(StandardCharsets.UTF_8))));
+        e.enableAutoSave(false);
+
+        EnforceContext ctx = new EnforceContext("2");
+        assertFalse(e.enforce(ctx, "alice", "data1", "read"));
+        assertTrue(e.enforce(ctx, "admin", "data1", "read"));
+
+        assertTrue(e.removeNamedPolicy("p2", "alice", "data1", "read", "deny"));
+        assertEquals(e.getNamedPolicy("p2"), Collections.singletonList(Arrays.asList("admin", "data1", "read", "allow")));
     }
 
     @Test

@@ -355,11 +355,14 @@ public class Model extends Policy {
      * sort policies by hieraichy map
      */
     public void sortPoliciesBySubjectHieraichy() {
-        if (model.get("e") == null || (!"subjectPriority(p_eft) || deny".equals(model.get("e").get("e").value))) {
+        if (model.get("e") == null || model.get("p") == null || model.get("g") == null || model.get("g").get("g") == null) {
             return;
         }
 
         for (Map.Entry<String, Assertion> entry : model.get("p").entrySet()) {
+            if (!"subjectPriority(p_eft) || deny".equals(effectForPolicyType(entry.getKey()))) {
+                continue;
+            }
             Map<String, Integer> subjectHierarchyMap = getSubjectHierarchyMap(model.get("g").get("g").policy);
             Assertion assertion = entry.getValue();
             domainIndex = -1;
@@ -372,12 +375,27 @@ public class Model extends Policy {
             Collections.sort(assertion.policy, (o1, o2)->{
                 String domain1 = domainIndex!=-1 ? o1.get(domainIndex) : defaultDomain;
                 String domain2 = domainIndex!=-1 ? o2.get(domainIndex) : defaultDomain;
-                int priority1 = subjectHierarchyMap.get(getNameWithDomain(domain1, o1.get(0)));
-                int priority2 = subjectHierarchyMap.get(getNameWithDomain(domain2, o2.get(0)));
+                int priority1 = subjectHierarchyMap.getOrDefault(getNameWithDomain(domain1, o1.get(0)), 0);
+                int priority2 = subjectHierarchyMap.getOrDefault(getNameWithDomain(domain2, o2.get(0)), 0);
                 return priority2-priority1;
             });
+            assertion.policyIndex.clear();
+            for (int i = 0; i < assertion.policy.size(); ++i) {
+                assertion.policyIndex.put(assertion.policy.get(i).toString(), i);
+            }
         }
 
+    }
+
+    // effectForPolicyType returns the effect of the e section that pairs with ptype by suffix (p2 -> e2),
+    // falling back to the default e section.
+    private String effectForPolicyType(String ptype) {
+        Map<String, Assertion> effects = model.get("e");
+        Assertion assertion = effects.get("e" + ptype.substring(1));
+        if (assertion == null) {
+            assertion = effects.get("e");
+        }
+        return assertion == null ? null : assertion.value;
     }
 
     public Map<String, Integer> getSubjectHierarchyMap(List<List<String>> policies) {
