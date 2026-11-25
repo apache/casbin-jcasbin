@@ -17,6 +17,7 @@
 
 package org.casbin.jcasbin.main;
 
+import org.casbin.jcasbin.exception.CasbinAdapterException;
 import org.casbin.jcasbin.model.Model;
 import org.casbin.jcasbin.persist.Adapter;
 import org.casbin.jcasbin.persist.file_adapter.FileAdapter;
@@ -29,6 +30,7 @@ import org.testng.annotations.Test;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Set;
@@ -39,6 +41,7 @@ import static org.casbin.jcasbin.main.CoreEnforcer.newModel;
 import static org.casbin.jcasbin.main.TestUtil.*;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 
 public class EnforcerUnitTest {
@@ -255,6 +258,27 @@ public class EnforcerUnitTest {
         Enforcer e = new Enforcer("examples/rbac_model.conf", "examples/rbac_policy.csv");
 
         e.savePolicy();
+    }
+
+    @Test
+    public void testFileAdapterRejectsLineBreaksInFields() throws IOException {
+        File policyFile = File.createTempFile("jcasbin_policy", ".csv");
+        policyFile.deleteOnExit();
+        Files.write(policyFile.toPath(), "p, alice, data1, read\n".getBytes(StandardCharsets.UTF_8));
+
+        Enforcer e = new Enforcer("examples/basic_model.conf", policyFile.getPath());
+        e.addPolicy("bob", "data1\np, eve, data2, write", "read");
+        assertThrows(CasbinAdapterException.class, e::savePolicy);
+        e.loadPolicy();
+        testEnforce(e, "eve", "data2", "write", false);
+
+        e.enableAutoSave(true);
+        assertFalse(e.addPolicy("bob", "data1\np, eve, data2, write", "read"));
+        assertFalse(e.addPolicy("bob", "data1\rp, eve, data2, write", "read"));
+        assertFalse(new String(Files.readAllBytes(policyFile.toPath()), StandardCharsets.UTF_8).contains("eve"));
+        e.loadPolicy();
+        testEnforce(e, "eve", "data2", "write", false);
+        testEnforce(e, "alice", "data1", "read", true);
     }
 
     @Test

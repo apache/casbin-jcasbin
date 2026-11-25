@@ -104,10 +104,20 @@ public class FileAdapter implements Adapter {
     private List<String> getModelPolicy(Model model, String ptype) {
         List<String> policy = new ArrayList<>();
         Optional.ofNullable(model.model.get(ptype)).ifPresent(entry -> entry.forEach((k, v) -> {
-            List<String> p = v.policy.parallelStream().map(x -> k + ", " + Util.arrayToString(x)).collect(Collectors.toList());
+            List<String> p = v.policy.parallelStream().map(x -> policyLine(k, x)).collect(Collectors.toList());
             policy.addAll(p);
         }));
         return policy;
+    }
+
+    // Policy lines are loaded one physical line at a time, so a field must not contain a line break.
+    private static String policyLine(String ptype, List<String> rule) {
+        for (String field : rule) {
+            if (field != null && (field.indexOf('\n') >= 0 || field.indexOf('\r') >= 0)) {
+                throw new CasbinAdapterException("invalid policy field " + field + ": line breaks are not allowed");
+            }
+        }
+        return ptype + ", " + Util.arrayToString(rule);
     }
 
     private void loadPolicyData(Model model, Helper.loadPolicyLineHandler<String, Model> handler, InputStream inputStream) {
@@ -134,7 +144,7 @@ public class FileAdapter implements Adapter {
      */
     @Override
     public void addPolicy(String sec, String ptype, List<String> rule) {
-        String ruleText = System.lineSeparator() + ptype + ", " + String.join(", ", rule);
+        String ruleText = System.lineSeparator() + policyLine(ptype, rule);
         if (byteArrayInputStream != null && readOnly) {
             throw new CasbinAdapterException("Policy file can not write, because use inputStream is readOnly");
         }
