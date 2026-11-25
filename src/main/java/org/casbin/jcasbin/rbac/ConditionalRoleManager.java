@@ -108,7 +108,7 @@ public class ConditionalRoleManager extends DefaultRoleManager{
             if (linkConditionFunc != null) {
                 List<String> params = getLinkConditionFuncParams(currentRole.getName(), nextRole.getName(), domains);
                 try {
-                    passLinkConditionFunc = linkConditionFunc.apply(params.toArray(new String[0]));
+                    passLinkConditionFunc = linkConditionFunc.apply(linkConditionArgs(params));
                 } catch (Exception e) {
                     err = e;
                 }
@@ -118,7 +118,7 @@ public class ConditionalRoleManager extends DefaultRoleManager{
             if (linkConditionFunc != null) {
                 List<String> params = getLinkConditionFuncParams(currentRole.getName(), nextRole.getName(), domains);
                 try {
-                    passLinkConditionFunc = linkConditionFunc.apply(params.toArray(new String[0]));
+                    passLinkConditionFunc = linkConditionFunc.apply(linkConditionArgs(params));
                 } catch (Exception e) {
                     err = e;
                 }
@@ -144,6 +144,11 @@ public class ConditionalRoleManager extends DefaultRoleManager{
         return true;
     }
 
+    // A condition without parameters is called with none.
+    private static String[] linkConditionArgs(List<String> params) {
+        return params == null ? new String[0] : params.toArray(new String[0]);
+    }
+
     private boolean checkPatternLinkCondition(String name1, String name2, String domain) {
         Role user = this.allRoles.get(name1);
         if (user == null) {
@@ -155,7 +160,7 @@ public class ConditionalRoleManager extends DefaultRoleManager{
                 continue;
             }
             List<String> params = getLinkConditionFuncParams(name1, name2, new String[]{key.getDomainName()});
-            if (!entry.getValue().apply(params.toArray(new String[0]))) {
+            if (!entry.getValue().apply(linkConditionArgs(params))) {
                 return false;
             }
         }

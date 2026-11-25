@@ -75,6 +75,31 @@ public class RoleManagerUnitTest {
     }
 
     @Test
+    public void testLinkConditionWithoutParams() {
+        ConditionalRoleManager rm = new ConditionalRoleManager(10);
+        rm.addLink("alice", "admin");
+        rm.addLinkConditionFunc("alice", "admin", params -> params.length == 0);
+        rm.addLink("bob", "admin");
+        rm.addLinkConditionFunc("bob", "admin", params -> false);
+        TestUtil.testHasRole(rm, "alice", "admin", true);
+        TestUtil.testHasRole(rm, "bob", "admin", false);
+
+        ConditionalDomainManager dm = new ConditionalDomainManager(10);
+        dm.addLink("alice", "admin", "domain1");
+        dm.addDomainLinkConditionFunc("alice", "admin", "domain1", params -> params.length == 0);
+        TestUtil.testHasRole(dm, "alice", "admin", "domain1", true);
+
+        dm = new ConditionalDomainManager(10);
+        dm.addDomainMatchingFunc("keyMatch", BuiltInFunctions::keyMatch);
+        dm.addLink("alice", "admin", "domain*");
+        dm.addDomainLinkConditionFunc("alice", "admin", "domain*", params -> params.length == 0);
+        dm.addLink("bob", "admin", "domain*");
+        dm.addDomainLinkConditionFunc("bob", "admin", "domain*", params -> false);
+        TestUtil.testHasRole(dm, "alice", "admin", "domain1", true);
+        TestUtil.testHasRole(dm, "bob", "admin", "domain1", false);
+    }
+
+    @Test
     public void testInvalidPatternMatchesNothing() {
         DefaultRoleManager rm = new DefaultRoleManager(10);
         rm.addMatchingFunc("regexMatch", BuiltInFunctions::regexMatch);
