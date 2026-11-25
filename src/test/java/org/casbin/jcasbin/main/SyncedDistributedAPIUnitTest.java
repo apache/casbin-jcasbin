@@ -93,5 +93,9 @@ public class SyncedDistributedAPIUnitTest {
         testEnforce(de, "bob", "data2", "write", false);
         testEnforce(de, "data2_admin", "data2", "read", false);
         testEnforce(de, "data2_admin", "data2", "write", false);
+
+        de.addPolicy("data2_admin", "data2", "read");
+        testEnforce(de, "new_user", "data2", "read", false);
+        testEnforce(de, "data2_admin", "data2", "read", true);
     }
 }

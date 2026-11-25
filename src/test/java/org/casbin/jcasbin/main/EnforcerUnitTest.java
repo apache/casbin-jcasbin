@@ -262,6 +262,14 @@ public class EnforcerUnitTest {
         Enforcer e = new Enforcer("examples/rbac_model.conf", "examples/rbac_policy.csv");
 
         e.clearPolicy();
+        e.addPolicy("data2_admin", "data2", "read");
+        testEnforce(e, "alice", "data2", "read", false);
+        testEnforce(e, "data2_admin", "data2", "read", true);
+
+        e = new Enforcer("examples/rbac_with_domains_model.conf", "examples/rbac_with_domains_policy.csv");
+        e.clearPolicy();
+        e.addPolicy("admin", "domain1", "data1", "read");
+        testDomainEnforce(e, "alice", "domain1", "data1", "read", false);
     }
 
     @Test

@@ -281,6 +281,9 @@ public class CoreEnforcer {
      */
     public void clearPolicy() {
         model.clearPolicy();
+        if (autoBuildRoleLinks) {
+            clearRmMap();
+        }
         bumpPolicyVersion();
     }
 
@@ -469,7 +472,7 @@ public class CoreEnforcer {
     /**
      * clearRmMap clears rmMap.
      */
-    private void clearRmMap() {
+    void clearRmMap() {
         if (!model.model.containsKey("g")) {
             return;
         }

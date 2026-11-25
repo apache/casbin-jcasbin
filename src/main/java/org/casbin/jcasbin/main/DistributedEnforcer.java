@@ -262,6 +262,9 @@ public class DistributedEnforcer extends SyncedEnforcer {
             }
         }
         this.model.clearPolicy();
+        if (autoBuildRoleLinks) {
+            clearRmMap();
+        }
         bumpPolicyVersion();
     }
 
